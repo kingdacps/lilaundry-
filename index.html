@@ -894,7 +894,11 @@ async function sendWelcomeEmail(tenant){
       rate: tenant.monthlyRate,
       due_day: tenant.dueDay || 'TBD'
     });
-  }catch(e){ console.log('Welcome email error:',e); }
+    toast('Welcome email sent to '+tenant.email);
+  }catch(e){
+    console.log('Welcome email error:',e);
+    toast('Welcome email failed: '+(e.text||e.message||'unknown error'));
+  }
 }
 
 async function saveTenant(){
