@@ -601,7 +601,7 @@ function renderMetrics(t){
   const remaining=Math.max(0,goal-mo);
   
   // SVG circle progress
-  const r=36, circ=2*Math.PI*r;
+  const r=24, circ=2*Math.PI*r;
   const dash=circ*(pct/100);
   const color=pct>=100?'#1baf7a':pct>=70?'#1a6fd4':'#f59e0b';
 
@@ -609,13 +609,13 @@ function renderMetrics(t){
     <div class="metric"><div class="mlabel">Active tenants</div><div class="mval" style="color:#1a6fd4;">${t.length}</div><div class="msub">${t.filter(x=>x.status==='active').length} active</div></div>
     <div class="metric"><div class="mlabel">Monthly revenue</div><div class="mval">$${mo.toLocaleString()}</div><div class="msub">$${(mo*12).toLocaleString()}/yr</div></div>
     <div class="metric" style="display:flex;align-items:center;gap:12px;grid-column:span 2;">
-      <div style="position:relative;width:88px;height:88px;flex-shrink:0;">
-        <svg width="88" height="88" style="transform:rotate(-90deg);">
-          <circle cx="44" cy="44" r="${r}" fill="none" stroke="#e2e0d8" stroke-width="8"/>
-          <circle cx="44" cy="44" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+      <div style="position:relative;width:58px;height:58px;flex-shrink:0;">
+        <svg width="58" height="58" style="transform:rotate(-90deg);">
+          <circle cx="29" cy="29" r="${r}" fill="none" stroke="#e2e0d8" stroke-width="6"/>
+          <circle cx="29" cy="29" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
         </svg>
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <span style="font-size:16px;font-weight:700;color:${color};">${pct}%</span>
+          <span style="font-size:12px;font-weight:700;color:${color};">${pct}%</span>
         </div>
       </div>
       <div style="flex:1;">
