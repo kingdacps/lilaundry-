@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>LI Laundry Club</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f2744;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-x:hidden;width:100%;}
+.card{background:white;border-radius:16px;padding:1.5rem 1.25rem;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.logo{text-align:center;margin-bottom:1.5rem;}
+.logo-icon{width:64px;height:64px;background:#e8f0fb;border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:32px;}
+.logo h1{font-size:22px;font-weight:700;color:#0f0f0f;}
+.logo p{font-size:13px;color:#898781;margin-top:4px;}
+.field{margin-bottom:1rem;}
+.field label{display:block;font-size:12px;font-weight:600;color:#52514e;margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px;}
+.field input{width:100%;padding:12px 14px;border:1.5px solid #e2e0d8;border-radius:8px;font-size:15px;color:#0f0f0f;}
+.field input:focus{outline:none;border-color:#1a6fd4;}
+.btn{width:100%;padding:13px;background:#1a6fd4;color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;margin-top:.5rem;}
+.msg{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:1rem;display:none;}
+.msg.error{background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;}
+.msg.info{background:#e8f0fb;color:#1a6fd4;border:1px solid #93c5fd;}
+.footer{text-align:center;font-size:11px;color:#898781;margin-top:1.25rem;}
+
+/* APP */
+#app{display:none;min-height:100vh;width:100vw;max-width:100%;background:#f7f6f2;flex-direction:column;overflow-x:hidden;position:relative;}
+.topbar{background:white;border-bottom:1px solid #e2e0d8;padding:0 .75rem;min-height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;flex-wrap:wrap;gap:6px;}
+.brand{font-size:14px;font-weight:700;color:#1a6fd4;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.chip{font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;background:#fef3c7;color:#92400e;}
+.signout{background:none;border:1px solid #e2e0d8;border-radius:8px;padding:5px 10px;font-size:12px;color:#52514e;cursor:pointer;}
+.body{flex:1;padding:1rem .75rem;max-width:900px;margin:0 auto;width:100%;overflow-x:hidden;}
+.tabs{display:flex;gap:4px;background:#f0efe9;padding:4px;border-radius:10px;margin-bottom:1.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:#52514e;white-space:nowrap;border:none;background:none;}
+.tab.on{background:white;color:#1a6fd4;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.25rem;}
+.metric{background:white;border-radius:10px;padding:.875rem;border:1px solid #e2e0d8;}
+.mlabel{font-size:11px;color:#898781;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
+.mval{font-size:22px;font-weight:700;color:#0f0f0f;}
+.msub{font-size:11px;color:#898781;margin-top:3px;}
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.sec-title{font-size:15px;font-weight:600;}
+.btn-add{background:#1a6fd4;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+.cards{display:grid;gap:12px;}
+.tcard{background:white;border:1px solid #e2e0d8;border-radius:12px;padding:1rem .875rem;overflow:hidden;word-break:break-word;}
+.thead{display:flex;align-items:flex-start;gap:12px;margin-bottom:1rem;}
+.av{width:44px;height:44px;border-radius:50%;background:#e8f0fb;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a6fd4;flex-shrink:0;}
+.tname{font-size:15px;font-weight:600;}
+.tid{font-size:11px;color:#898781;font-family:monospace;margin-top:2px;}
+.tmeta{font-size:12px;color:#898781;margin-top:2px;}
+.sbadge{margin-left:auto;font-size:11px;padding:4px 10px;border-radius:99px;font-weight:600;flex-shrink:0;}
+.s-active{background:#dcfce7;color:#166534;}
+.s-issue{background:#fef9c3;color:#854d0e;}
+.s-inactive{background:#f1f5f9;color:#475569;}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.75rem;}
+.fl{font-size:11px;color:#898781;margin-bottom:2px;}
+.fv{font-size:13px;font-weight:500;}
+.id-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#1baf7a;background:#f0fdf4;border:1px solid #86efac;padding:4px 10px;border-radius:99px;margin-bottom:.75rem;}
+.pay-badge{display:inline-flex;align-items:center;font-size:12px;padding:4px 10px;border-radius:99px;font-weight:600;margin-bottom:.75rem;margin-left:8px;}
+.p-paid{background:#dcfce7;color:#166534;}
+.p-late{background:#fef2f2;color:#dc2626;}
+.p-due{background:#fef9c3;color:#854d0e;}
+.tactions{display:flex;gap:8px;flex-wrap:wrap;margin-top:.75rem;}
+.btn-s{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid #e2e0d8;background:white;color:#52514e;}
+.btn-s.red{color:#e24b4a;border-color:#fca5a5;background:#fef2f2;}
+.btn-s.purple{color:#6b21a8;border-color:#d8b4fe;background:#f3e8ff;}
+.bar{margin-top:.75rem;}
+.bar-top{display:flex;justify-content:space-between;font-size:11px;color:#898781;margin-bottom:4px;}
+.bar-track{height:5px;background:#f0efe9;border-radius:99px;overflow:hidden;}
+.bar-fill{height:100%;background:#1baf7a;border-radius:99px;}
+.empty{text-align:center;padding:3rem 1rem;color:#898781;}
+.reminder{background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px;display:flex;align-items:center;gap:12px;}
+.r-icon{font-size:24px;}
+.r-text{font-size:13px;color:#92400e;flex:1;}
+.r-text strong{display:block;font-size:14px;margin-bottom:2px;}
+
+/* EMP VIEW */
+.scorecard{background:white;border:1px solid #e2e0d8;border-radius:12px;padding:1.5rem;margin-bottom:1.25rem;}
+.sc-head{display:flex;align-items:center;gap:14px;margin-bottom:1.25rem;}
+.sc-av{width:56px;height:56px;border-radius:50%;background:#e8f0fb;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#1a6fd4;}
+.sc-name{font-size:18px;font-weight:700;}
+.sc-sub{font-size:13px;color:#898781;margin-top:3px;}
+.sc-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;}
+.sc-stat{background:#f7f6f2;border-radius:8px;padding:.875rem;text-align:center;}
+.sc-n{font-size:24px;font-weight:700;color:#1a6fd4;}
+.sc-l{font-size:11px;color:#898781;margin-top:4px;}
+
+/* MACHINE */
+.mcard{background:white;border:1px solid #e2e0d8;border-radius:12px;padding:1.25rem;margin-bottom:12px;}
+.mhead{display:flex;align-items:center;gap:12px;margin-bottom:1rem;}
+.mnum{width:44px;height:44px;border-radius:10px;background:#e8f0fb;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1a6fd4;flex-shrink:0;}
+.mname{font-size:15px;font-weight:600;}
+.mmeta{font-size:12px;color:#898781;margin-top:2px;}
+.mcond{font-size:11px;padding:4px 10px;border-radius:99px;font-weight:600;margin-left:auto;}
+.c-good{background:#dcfce7;color:#166534;}
+.c-watch{background:#fef9c3;color:#854d0e;}
+.c-risk{background:#fef2f2;color:#dc2626;}
+.warn-box{background:#fef9c3;border-radius:8px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:.75rem;}
+
+/* EMP CARD */
+.ecard{background:white;border:1px solid #e2e0d8;border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.eav{width:40px;height:40px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#92400e;}
+.ename{font-size:14px;font-weight:600;}
+.esub{font-size:12px;color:#898781;}
+.estat{margin-left:auto;text-align:right;font-size:13px;font-weight:600;color:#1a6fd4;}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:flex-end;justify-content:center;overflow:hidden;-webkit-overflow-scrolling:touch;}
+.overlay.show{display:flex;}
+@media(min-width:600px){.overlay{align-items:center;padding:1rem;}}
+.modal{background:white;border-radius:16px 16px 0 0;width:100%;max-width:500px;max-height:93vh;overflow-y:auto;padding:1.5rem;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+@media(min-width:600px){.modal{border-radius:16px;}}
+.mhead2{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;}
+.mtitle{font-size:17px;font-weight:700;}
+.mclose{background:none;border:none;font-size:22px;cursor:pointer;color:#898781;}
+.fg{margin-bottom:1rem;}
+.fg label{font-size:12px;font-weight:600;color:#52514e;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px;}
+.fg input,.fg select,.fg textarea{width:100%;padding:11px 14px;border:1.5px solid #e2e0d8;border-radius:8px;font-size:14px;color:#0f0f0f;background:white;}
+.fg textarea{resize:vertical;min-height:70px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:420px){.row2{grid-template-columns:1fr;}}
+.mfoot{display:flex;gap:10px;justify-content:flex-end;margin-top:1.25rem;padding-top:1rem;border-top:1px solid #e2e0d8;}
+.btn-cancel{padding:10px 20px;border:1px solid #e2e0d8;border-radius:8px;background:white;font-size:14px;cursor:pointer;color:#52514e;}
+.btn-save{padding:10px 24px;background:#1a6fd4;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;}
+.id-upload-area{border:2px dashed #e2e0d8;border-radius:8px;padding:1rem;text-align:center;cursor:pointer;margin-bottom:8px;}
+.id-upload-area:hover{border-color:#1a6fd4;}
+.id-upload-area p{font-size:13px;color:#898781;}
+.id-preview{max-width:100%;border-radius:8px;border:1px solid #e2e0d8;max-height:160px;object-fit:contain;display:none;margin-top:8px;}
+.id-locked{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#1baf7a;background:#f0fdf4;border:1px solid #86efac;padding:4px 10px;border-radius:99px;}
+
+/* PAY MODAL */
+.pay-info{background:#f7f6f2;border-radius:8px;padding:12px;margin-bottom:1rem;font-size:13px;line-height:1.8;}
+
+/* APPROVAL */
+.apcard{background:white;border:2px solid #f59e0b;border-radius:12px;padding:1.25rem;margin-bottom:12px;}
+.aphead{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;}
+.aptitle{font-size:14px;font-weight:600;}
+.apmeta{font-size:12px;color:#898781;margin-bottom:1rem;}
+.ap-btns{display:flex;gap:8px;}
+.btn-approve{padding:8px 16px;background:#1baf7a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-deny{padding:8px 16px;background:#e24b4a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+
+/* TECH */
+.tech-banner{background:#6b21a8;color:white;padding:10px 1rem;text-align:center;font-size:13px;font-weight:600;display:none;}
+.btn-tech{background:#f3e8ff;color:#6b21a8;border:1px solid #d8b4fe;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:600;cursor:pointer;}
+.btn-tech.on{background:#6b21a8;color:white;border-color:#6b21a8;}
+
+.toast{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:#0f2744;color:white;padding:10px 20px;border-radius:99px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;}
+body.modal-open{overflow:hidden;}
+.toast.show{opacity:1;}
+
+/* ID viewer */
+#idViewer{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:400;display:none;align-items:center;justify-content:center;padding:1rem;flex-direction:column;gap:12px;}
+#idViewer img{max-width:100%;max-height:80vh;border-radius:12px;}
+#idViewer button{background:white;border:none;border-radius:99px;padding:8px 24px;font-size:14px;font-weight:600;cursor:pointer;}
+
+@media(max-width:480px){
+  .body{padding:.75rem .5rem;}
+  .metrics{grid-template-columns:1fr 1fr;}
+  .tgrid{grid-template-columns:1fr 1fr;}
+  .row2{grid-template-columns:1fr;}
+  .topbar-right{gap:6px;}
+  .chip{font-size:10px;padding:2px 8px;}
+  .mval{font-size:18px;}
+  .tname{font-size:14px;}
+  .tactions{gap:6px;}
+  .btn-s{padding:5px 10px;font-size:11px;}
+  .thead{gap:8px;}
+  .av{width:38px;height:38px;font-size:12px;}
+  .modal{padding:1.25rem 1rem;}
+  .sc-stats{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:360px){
+  .body{padding:.5rem .375rem;}
+  .tab{padding:6px 10px;font-size:12px;}
+  .metrics{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ID VIEWER -->
+<div id="idViewer">
+  <img id="idViewImg" src="" alt="ID"/>
+  <button onclick="document.getElementById('idViewer').style.display='none'">Close</button>
+</div>
+
+<!-- LOGIN -->
+<div id="loginWrap">
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">🧺</div>
+      <h1>LI Laundry Club</h1>
+      <p>Sign in to your account</p>
+    </div>
+    <div class="msg" id="loginMsg"></div>
+    <div class="field">
+      <label>Username</label>
+      <input id="lUser" type="text" placeholder="Enter username" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="lPass" type="password" placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+    <button class="btn" onclick="doLogin()">Sign in</button>
+    <p class="footer">LI Laundry Club © 2026</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="brand">🧺 LI Laundry Club</div>
+    <div class="topbar-right">
+      <span class="chip" id="userChip"></span>
+      <button class="btn-tech" id="techBtn" style="display:none;" onclick="toggleTech()">🔧 Tech Mode</button><!-- hidden, shown in scorecard -->
+      <button class="signout" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+  <div class="tech-banner" id="techBanner">🔧 Tech Mode — Repair View</div>
+
+  <div class="body">
+    <!-- ADMIN TABS -->
+    <div class="tabs" id="adminTabs" style="display:none;">
+      <button class="tab on" onclick="showTab('tenants',this)">Tenants</button>
+      <button class="tab" onclick="showTab('machines',this)">Machines</button>
+      <button class="tab" onclick="showTab('payments',this)">Payments</button>
+      <button class="tab" onclick="showTab('employees',this)">Employees</button>
+      <button class="tab" onclick="showTab('approvals',this)">Approvals <span id="apBadge" style="display:none;background:#e24b4a;color:white;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
+    </div>
+
+    <!-- TENANTS -->
+    <div id="tab-tenants">
+      <div class="metrics" id="metricsGrid" style="display:none;"></div>
+      <div id="reminders"></div>
+      <div class="sec-head">
+        <p class="sec-title" id="tenantsTitle">Tenants</p>
+        <button class="btn-add" onclick="openAddTenant()">+ Add Tenant</button>
+      </div>
+      <div class="cards" id="tenantList"></div>
+    </div>
+
+    <!-- MACHINES -->
+    <div id="tab-machines" style="display:none;">
+      <div class="sec-head"><p class="sec-title">Machines</p><button class="btn-add" onclick="openAddMachine()">+ Add Machine</button></div>
+      <div id="machineList"></div>
+    </div>
+
+    <!-- PAYMENTS -->
+    <div id="tab-payments" style="display:none;">
+      <div class="metrics" id="payMetrics"></div>
+      <div style="margin-top:1rem;" id="payList"></div>
+    </div>
+
+    <!-- EMPLOYEES -->
+    <div id="tab-employees" style="display:none;">
+      <div class="sec-head"><p class="sec-title">Employees</p><button class="btn-add" onclick="openAddEmp()">+ Add Employee</button></div>
+      <div id="empList"></div>
+    </div>
+
+    <!-- APPROVALS -->
+    <div id="tab-approvals" style="display:none;">
+      <div class="sec-head"><p class="sec-title">Pending Approvals</p></div>
+      <div id="approvalList"></div>
+    </div>
+
+    <!-- EMP VIEW -->
+    <div id="empView" style="display:none;">
+      <div id="empScorecard"></div>
+    </div>
+
+    <!-- TECH VIEW -->
+    <div id="techView" style="display:none;">
+      <div class="sec-head"><p class="sec-title">Repair Jobs</p></div>
+      <div id="techList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TENANT MODAL -->
+<div class="overlay" id="tModal" onclick="bgClose(event,'tModal')">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle" id="tModalTitle">Add Tenant</p><button class="mclose" onclick="closeM('tModal')">✕</button></div>
+    <div class="row2">
+      <div class="fg"><label>First name</label><input id="t-fn" placeholder="Jane"/></div>
+      <div class="fg"><label>Last name</label><input id="t-ln" placeholder="Smith"/></div>
+    </div>
+    <div class="fg"><label>Address</label><input id="t-addr" placeholder="123 Main St, Hempstead NY"/></div>
+    <div class="fg"><label>Phone</label><input id="t-phone" placeholder="631-555-0100"/></div>
+    <div class="fg"><label>Email</label><input id="t-email" type="email" placeholder="jane@email.com"/></div>
+    <div class="row2">
+      <div class="fg"><label>Monthly rate ($)</label><input id="t-rate" type="number" placeholder="85"/></div>
+      <div class="fg"><label>Family size</label><input id="t-fam" type="number" placeholder="2" min="1"/></div>
+    </div>
+    <div class="row2">
+      <div class="fg"><label>Payment due day</label><input id="t-due" type="number" placeholder="e.g. 1, 15, 20" min="1" max="31"/></div>
+      <div class="fg"><label>Status</label><select id="t-status"><option value="active">Active</option><option value="issue">Issue</option><option value="inactive">Inactive</option></select></div>
+    </div>
+    <div class="fg"><label>Washer</label><select id="t-washer"><option value="">None</option></select></div>
+    <div class="fg"><label>Dryer</label><select id="t-dryer"><option value="">None</option></select></div>
+    <div class="fg" id="idFrontSection">
+      <label>ID — Front</label>
+      <div id="idFrontLocked" style="display:none;"><span class="id-locked">🔒 Front ID locked</span></div>
+      <div id="idFrontUpload">
+        <div class="id-upload-area" onclick="document.getElementById('idFrontFile').click()">
+          <p>📷 Tap to upload front of ID</p>
+          <input type="file" id="idFrontFile" accept="image/*" style="display:none;" onchange="previewID(this,'front')"/>
+        </div>
+        <img id="idFrontPreview" class="id-preview"/>
+      </div>
+    </div>
+    <div class="fg" id="idBackSection">
+      <label>ID — Back</label>
+      <div id="idBackLocked" style="display:none;"><span class="id-locked">🔒 Back ID locked</span></div>
+      <div id="idBackUpload">
+        <div class="id-upload-area" onclick="document.getElementById('idBackFile').click()">
+          <p>📷 Tap to upload back of ID</p>
+          <input type="file" id="idBackFile" accept="image/*" style="display:none;" onchange="previewID(this,'back')"/>
+        </div>
+        <img id="idBackPreview" class="id-preview"/>
+      </div>
+    </div>
+    <div class="fg"><label>Notes</label><textarea id="t-notes" placeholder="Any notes..."></textarea></div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('tModal')">Cancel</button>
+      <button class="btn-save" id="tSaveBtn" onclick="saveTenant()">Add Tenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- MACHINE MODAL -->
+<div class="overlay" id="mModal" onclick="bgClose(event,'mModal')">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle" id="mModalTitle">Add Machine</p><button class="mclose" onclick="closeM('mModal')">✕</button></div>
+    <div class="fg"><label>Type</label><select id="m-type"><option value="washer">Washer</option><option value="dryer">Dryer</option></select></div>
+    <input type="hidden" id="m-num" value=""/>
+    <div class="row2">
+      <div class="fg"><label>Brand</label><input id="m-brand" placeholder="Samsung"/></div>
+      <div class="fg"><label>Model</label><input id="m-model" placeholder="WF210ANW"/></div>
+    </div>
+    <div class="fg"><label>Serial number</label><input id="m-serial" placeholder="Serial #"/></div>
+    <div class="row2">
+      <div class="fg"><label>Year made</label><input id="m-year" type="number" placeholder="2015"/></div>
+      <div class="fg"><label>Condition</label><select id="m-cond"><option value="good">Good</option><option value="watch">Watch</option><option value="risk">High Risk</option></select></div>
+    </div>
+    <div class="fg"><label>Notes</label><textarea id="m-notes" placeholder="Notes..."></textarea></div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('mModal')">Cancel</button>
+      <button class="btn-save" id="mSaveBtn" onclick="saveMachine()">Add Machine</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMPLOYEE MODAL -->
+<div class="overlay" id="eModal" onclick="bgClose(event,'eModal')">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle">Add Employee</p><button class="mclose" onclick="closeM('eModal')">✕</button></div>
+    <div class="fg"><label>Full name</label><input id="e-name" placeholder="John Doe"/></div>
+    <div class="row2">
+      <div class="fg"><label>Username</label><input id="e-user" placeholder="johndoe"/></div>
+      <div class="fg"><label>Password</label><input id="e-pass" type="password" placeholder="Password"/></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('eModal')">Cancel</button>
+      <button class="btn-save" onclick="saveEmp()">Add Employee</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAY MODAL -->
+<div class="overlay" id="payModal" onclick="bgClose(event,'payModal')">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle" id="payModalTitle">Payment</p><button class="mclose" onclick="closeM('payModal')">✕</button></div>
+    <div class="pay-info" id="payInfo"></div>
+    <div class="fg"><label>Date received</label><input id="pay-date" type="date"/></div>
+    <div class="fg"><label>Amount ($)</label><input id="pay-amount" type="number"/></div>
+    <div class="fg"><label>Notes</label><input id="pay-notes" placeholder="Optional..."/></div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('payModal')">Cancel</button>
+      <button class="btn-save" onclick="savePay()">Mark Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW ID MODAL -->
+<div class="overlay" id="viewIDModal" onclick="bgClose(event,'viewIDModal')">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle">🔒 Tenant ID</p><button class="mclose" onclick="closeM('viewIDModal')">✕</button></div>
+    <p style="font-size:13px;color:#898781;margin-bottom:1rem;">Verified and permanently locked.</p>
+    <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Front:</p>
+    <img id="viewFront" style="width:100%;border-radius:8px;border:1px solid #e2e0d8;margin-bottom:1rem;"/>
+    <p style="font-size:13px;font-weight:600;margin-bottom:6px;">Back:</p>
+    <img id="viewBack" style="width:100%;border-radius:8px;border:1px solid #e2e0d8;"/>
+    <div class="mfoot"><button class="btn-save" onclick="closeM('viewIDModal')">Close</button></div>
+  </div>
+</div>
+
+<!-- REPAIR MODAL -->
+<div class="overlay" id="repairModal" onclick="bgClose(event,'repairModal')">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle">Submit Repair</p><button class="mclose" onclick="closeM('repairModal')">✕</button></div>
+    <div class="pay-info" id="repairInfo"></div>
+    <div class="fg"><label>What was the issue?</label><textarea id="r-issue" placeholder="Describe the problem..."></textarea></div>
+    <div class="fg"><label>What did you fix?</label><textarea id="r-fix" placeholder="Describe the repair..."></textarea></div>
+    <div class="fg"><label>Parts replaced</label><input id="r-parts" placeholder="e.g. Door latch assembly"/></div>
+    <div class="fg">
+      <label>Before photo</label>
+      <div class="id-upload-area" onclick="document.getElementById('r-before-file').click()">
+        <p>📷 Add before photo</p>
+        <input type="file" id="r-before-file" accept="image/*" style="display:none;" onchange="repairPhotoPreview(this,'before')"/>
+      </div>
+      <img id="r-before-preview" class="id-preview"/>
+    </div>
+    <div class="fg">
+      <label>After photo</label>
+      <div class="id-upload-area" onclick="document.getElementById('r-after-file').click()">
+        <p>📷 Add after photo</p>
+        <input type="file" id="r-after-file" accept="image/*" style="display:none;" onchange="repairPhotoPreview(this,'after')"/>
+      </div>
+      <img id="r-after-preview" class="id-preview"/>
+    </div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('repairModal')">Cancel</button>
+      <button class="btn-save" onclick="submitRepair()">Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FB = {
+  apiKey:"AIzaSyCMIuIB7A4Twhn0BlrGalD8NjgOZ4scK6M",
+  authDomain:"li-laundry-club.firebaseapp.com",
+  projectId:"li-laundry-club",
+  storageBucket:"li-laundry-club.firebasestorage.app",
+  messagingSenderId:"733563627875",
+  appId:"1:733563627875:web:3bbe552f6a59c63ecccb56"
+};
+firebase.initializeApp(FB);
+const db = firebase.firestore();
+
+let me = null, techMode = false, editTenantId = null, editMachineId = null;
+let payingId = null, repairingId = null;
+let tenants = [], machines = [];
+let idFrontData = null, idBackData = null;
+let repairBefore = null, repairAfter = null;
+
+const toast = msg => { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); };
+const $ = id => document.getElementById(id);
+const ini = t => ((t.firstName||'?')[0]+(t.lastName||'?')[0]).toUpperCase();
+const genID = () => 'LLC-'+Math.floor(1000+Math.random()*9000);
+const months = d => { if(!d)return 1; const s=new Date(d),n=new Date(); return Math.max(1,(n.getFullYear()-s.getFullYear())*12+(n.getMonth()-s.getMonth())); };
+const savings = t => Math.max(0, 5.5*3*4*(t.familySize||1)-(t.monthlyRate||0));
+
+function payStatus(t){
+  if(!t.dueDay) return 'unknown';
+  const now=new Date(), today=now.getDate(), due=parseInt(t.dueDay);
+  const last=t.lastPaidDate?new Date(t.lastPaidDate):null;
+  if(last){ const same=last.getMonth()===now.getMonth()&&last.getFullYear()===now.getFullYear(); if(same)return 'paid'; }
+  if(today>due)return 'late';
+  if(today>=due-2)return 'due';
+  return 'upcoming';
+}
+
+// LOGIN
+async function doLogin(){
+  const u=$('lUser').value.trim(), p=$('lPass').value;
+  const msg=$('loginMsg');
+  msg.className='msg info'; msg.textContent='Connecting to database...'; msg.style.display='block';
+  if(!u||!p){ msg.className='msg error'; msg.textContent='Please enter username and password.'; return; }
+  try{
+    const snap = await db.collection('users').get();
+    if(snap.empty){ msg.className='msg error'; msg.textContent='Database is empty. No users found.'; return; }
+    const doc = snap.docs.find(d=>d.data().username===u);
+    if(!doc){ msg.className='msg error'; msg.textContent='Username "'+u+'" not found. ('+snap.size+' users in DB)'; return; }
+    const data = doc.data();
+    if(data.password!==p){ msg.className='msg error'; msg.textContent='Incorrect password.'; return; }
+    msg.style.display='none';
+    me={id:doc.id,...data};
+    enterApp();
+  }catch(e){
+    msg.className='msg error';
+    msg.textContent='Connection failed: '+e.message;
+  }
+}
+
+function enterApp(){
+  $('loginWrap').style.display='none';
+  document.body.style.background='#f7f6f2';
+  document.body.style.padding='0';
+  document.body.style.alignItems='flex-start';
+  document.body.style.justifyContent='flex-start';
+  const app=$('app'); app.style.display='flex'; app.style.flexDirection='column';
+  $('userChip').textContent=me.name||me.username;
+
+  if(me.role==='admin'){
+    // ADMIN — show everything
+    $('adminTabs').style.display='flex';
+    $('metricsGrid').style.display='grid';
+    $('tab-tenants').style.display='block';
+    $('tenantsTitle').textContent='All Tenants';
+    $('empView').style.display='none';
+    $('techView').style.display='none';
+    loadAll();
+  } else {
+    // EMPLOYEE — hide ALL admin stuff, show only employee view
+    $('adminTabs').style.display='none';
+    $('metricsGrid').style.display='none';
+    $('tab-tenants').style.display='none';
+    $('tab-machines').style.display='none';
+    $('tab-payments').style.display='none';
+    $('tab-employees').style.display='none';
+    $('tab-approvals').style.display='none';
+    $('reminders').style.display='none';
+    $('empView').style.display='block';
+    $('techView').style.display='none';
+    loadAll();
+  }
+}
+
+function doLogout(){
+  me=null; techMode=false; tenants=[]; machines=[];
+  document.body.style.background='#0f2744';
+  document.body.style.padding='1rem';
+  document.body.style.alignItems='center';
+  document.body.style.justifyContent='center';
+  $('loginWrap').style.display='flex';
+  $('app').style.display='none';
+  $('lUser').value=''; $('lPass').value='';
+  // Reset all sections
+  $('adminTabs').style.display='none';
+  $('metricsGrid').style.display='none';
+  $('techBtn').style.display='none';
+  $('techBanner').style.display='none';
+  $('empView').style.display='none';
+  $('techView').style.display='none';
+  $('tab-tenants').style.display='block';
+  $('tab-machines').style.display='none';
+  $('tab-payments').style.display='none';
+  $('tab-employees').style.display='none';
+  $('tab-approvals').style.display='none';
+  $('reminders').style.display='block';
+}
+
+// LOAD ALL
+async function loadAll(){
+  try{
+    await loadGoal();
+    const [ts, ms] = await Promise.all([
+      db.collection('tenants').orderBy('createdAt','desc').get(),
+      db.collection('machines').orderBy('machineNum').get()
+    ]);
+    tenants = ts.docs.map(d=>({id:d.id,...d.data()}));
+    machines = ms.docs.map(d=>({id:d.id,...d.data()}));
+    if(me.role==='admin'){
+      renderTenants(tenants.filter(t=>t.status!=='archived'));
+      renderMetrics(tenants.filter(t=>t.status==='active'));
+      renderReminders();
+    } else if(techMode){ renderTechView(); }
+    else { renderEmpScorecard(); }
+  }catch(e){ toast('Error loading: '+e.message); }
+}
+
+// TABS
+function showTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['tenants','machines','payments','employees','approvals'].forEach(t=>{ $(('tab-'+t)).style.display=t===name?'block':'none'; });
+  if(name==='machines') renderMachines();
+  if(name==='payments') renderPayments();
+  if(name==='employees') loadEmps();
+  if(name==='approvals') loadApprovals();
+}
+
+// METRICS
+let currentGoal = 900;
+
+async function loadGoal(){
+  try{
+    const snap = await db.collection('settings').doc('goal').get();
+    if(snap.exists) currentGoal = snap.data().amount || 900;
+  }catch(e){}
+}
+
+async function saveGoal(amount){
+  try{
+    await db.collection('settings').doc('goal').set({amount});
+    currentGoal = amount;
+    toast('Goal updated to $'+amount+'/mo');
+  }catch(e){ toast('Error saving goal'); }
+}
+
+function renderMetrics(t){
+  const mo=t.reduce((s,x)=>s+(x.monthlyRate||0),0);
+  const goal=currentGoal;
+  const pct=Math.min(100,Math.round((mo/goal)*100));
+  const late=t.filter(x=>payStatus(x)==='late').length;
+  const remaining=Math.max(0,goal-mo);
+  
+  // SVG circle progress
+  const r=36, circ=2*Math.PI*r;
+  const dash=circ*(pct/100);
+  const color=pct>=100?'#1baf7a':pct>=70?'#1a6fd4':'#f59e0b';
+
+  $('metricsGrid').innerHTML=`
+    <div class="metric"><div class="mlabel">Active tenants</div><div class="mval" style="color:#1a6fd4;">${t.length}</div><div class="msub">${t.filter(x=>x.status==='active').length} active</div></div>
+    <div class="metric"><div class="mlabel">Monthly revenue</div><div class="mval">$${mo.toLocaleString()}</div><div class="msub">$${(mo*12).toLocaleString()}/yr</div></div>
+    <div class="metric" style="display:flex;align-items:center;gap:12px;grid-column:span 2;">
+      <div style="position:relative;width:88px;height:88px;flex-shrink:0;">
+        <svg width="88" height="88" style="transform:rotate(-90deg);">
+          <circle cx="44" cy="44" r="${r}" fill="none" stroke="#e2e0d8" stroke-width="8"/>
+          <circle cx="44" cy="44" r="${r}" fill="none" stroke="${color}" stroke-width="8" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+          <span style="font-size:16px;font-weight:700;color:${color};">${pct}%</span>
+        </div>
+      </div>
+      <div style="flex:1;">
+        <div class="mlabel">Monthly goal</div>
+        <div style="font-size:20px;font-weight:700;color:${pct>=100?'#1baf7a':'#0f0f0f'};">${pct>=100?'✓ Reached!':'$'+remaining+' to go'}</div>
+        <div style="font-size:12px;color:#898781;margin-top:2px;">$${mo} of $${goal}/mo</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+          <input type="number" id="goalInput" value="${goal}" style="width:80px;padding:4px 8px;border:1.5px solid #e2e0d8;border-radius:6px;font-size:13px;" onkeydown="if(event.key==='Enter')updateGoal()"/>
+          <button onclick="updateGoal()" style="padding:4px 10px;background:#1a6fd4;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Set</button>
+        </div>
+      </div>
+    </div>
+    <div class="metric"><div class="mlabel">Late payments</div><div class="mval" style="color:${late>0?'#e24b4a':'#1baf7a'}">${late}</div></div>`;
+}
+
+function updateGoal(){
+  const val = parseInt($('goalInput').value);
+  if(!val||val<1){ toast('Enter a valid goal amount'); return; }
+  saveGoal(val);
+  // Re-render metrics with new goal
+  const active=tenants.filter(t=>t.status==='active');
+  renderMetrics(active);
+}
+
+function renderReminders(){
+  const active=tenants.filter(t=>t.status==='active');
+  const late=active.filter(t=>payStatus(t)==='late');
+  const due=active.filter(t=>payStatus(t)==='due');
+  let h='';
+  late.forEach(t=>{ h+=`<div class="reminder"><div class="r-icon">🔴</div><div class="r-text"><strong>${t.firstName} ${t.lastName} — LATE</strong>Due on the ${t.dueDay}th · $${t.monthlyRate}/mo</div><button class="btn-s" onclick="openPay('${t.id}')" style="flex-shrink:0;">Mark Paid</button></div>`; });
+  due.forEach(t=>{ h+=`<div class="reminder"><div class="r-icon">🟡</div><div class="r-text"><strong>${t.firstName} ${t.lastName} — DUE SOON</strong>Due on the ${t.dueDay}th · $${t.monthlyRate}/mo</div><button class="btn-s" onclick="openPay('${t.id}')" style="flex-shrink:0;">Mark Paid</button></div>`; });
+  $('reminders').innerHTML=h;
+}
+
+// TENANTS
+function toggleCard(id){
+  const detail = document.getElementById('detail-'+id);
+  const arrow = document.getElementById('arrow-'+id);
+  const expanded = detail.style.display === 'block';
+  detail.style.display = expanded ? 'none' : 'block';
+  arrow.textContent = expanded ? '▸' : '▾';
+}
+
+function renderTenants(list){
+  const el=$('tenantList');
+  if(!list.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">🧺</div><p>No tenants yet.</p></div>'; return; }
+  el.innerHTML=list.map(t=>{
+    const sv=savings(t), lm=5.5*3*4*(t.familySize||1), pct=Math.min(100,Math.round((sv/Math.max(lm,1))*100));
+    const mo=months(t.createdAt), paid=mo*(t.monthlyRate||0);
+    const bc=t.status==='active'?'s-active':t.status==='issue'?'s-issue':'s-inactive';
+    const ps=payStatus(t);
+    const pb=ps==='paid'?'<span class="pay-badge p-paid">✓ Paid</span>':ps==='late'?'<span class="pay-badge p-late">⚠ Late</span>':ps==='due'?'<span class="pay-badge p-due">Due Soon</span>':'';
+    const w=machines.find(m=>m.id===t.washerId), d=machines.find(m=>m.id===t.dryerId);
+    const isAdmin=me.role==='admin';
+    return `<div class="tcard" style="padding:.875rem;">
+      <!-- COLLAPSED ROW - always visible -->
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="toggleCard('${t.id}')">
+        <div class="av" style="width:36px;height:36px;font-size:12px;flex-shrink:0;">${ini(t)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:14px;font-weight:600;">${t.firstName} ${t.lastName}</span>
+            <span class="sbadge ${bc}" style="font-size:10px;padding:2px 8px;">${t.status}</span>
+            ${ps==='late'?'<span style="font-size:10px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:99px;font-weight:600;">Late</span>':ps==='due'?'<span style="font-size:10px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:99px;font-weight:600;">Due</span>':ps==='paid'?'<span style="font-size:10px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:99px;font-weight:600;">✓</span>':''}
+          </div>
+          <div style="font-size:11px;color:#898781;margin-top:2px;">$${t.monthlyRate||0}/mo · ${t.tenantID||'—'}</div>
+        </div>
+        <span id="arrow-${t.id}" style="font-size:16px;color:#898781;flex-shrink:0;">▸</span>
+      </div>
+
+      <!-- EXPANDED DETAIL - hidden by default -->
+      <div id="detail-${t.id}" style="display:none;margin-top:1rem;border-top:1px solid #e2e0d8;padding-top:1rem;">
+        <div class="tmeta" style="margin-bottom:.5rem;">📍 ${t.address||'—'} · 📞 ${t.phone||'—'}</div>
+        ${isAdmin?`<div class="tmeta" style="margin-bottom:.75rem;">👤 ${t.employeeName||'Admin'}</div>`:''}
+        ${(t.idFront||t.idBack)?'<span class="id-badge" style="margin-bottom:.75rem;display:inline-flex;">🔒 ID Verified & Locked</span>':'<span style="font-size:12px;color:#f59e0b;display:block;margin-bottom:.75rem;">⚠ No ID on file</span>'}
+        ${pb}
+        <div class="tgrid" style="margin-top:.75rem;">
+          <div><div class="fl">Monthly rate</div><div class="fv">$${t.monthlyRate||0}/mo</div></div>
+          <div><div class="fl">Payment due</div><div class="fv">${t.dueDay?'Every '+t.dueDay+'th':'Not set'}</div></div>
+          <div><div class="fl">Family size</div><div class="fv">${t.familySize||1} person${(t.familySize||1)>1?'s':''}</div></div>
+          <div><div class="fl">Member since</div><div class="fv">${t.createdAt?new Date(t.createdAt).toLocaleDateString('en-US',{month:'short',year:'numeric'}):'—'}</div></div>
+          <div><div class="fl">Total paid</div><div class="fv">$${paid.toLocaleString()}</div></div>
+          <div><div class="fl">Saving/mo</div><div class="fv" style="color:#1baf7a;">$${sv.toFixed(0)}</div></div>
+          ${w?`<div><div class="fl">Washer</div><div class="fv">#${w.machineNum} ${w.brand}</div></div>`:''}
+          ${d?`<div><div class="fl">Dryer</div><div class="fv">#${d.machineNum} ${d.brand}</div></div>`:''}
+        </div>
+        ${t.notes?`<div style="font-size:12px;background:#f7f6f2;padding:8px 12px;border-radius:8px;margin:.75rem 0;">📝 ${t.notes}</div>`:''}
+        <div class="bar"><div class="bar-top"><span>Saving $${sv.toFixed(0)}/mo vs laundromat</span><span>${pct}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div></div>
+        <div class="tactions">
+          ${isAdmin?`<button class="btn-s" onclick="openEditTenant('${t.id}')">✏️ Edit</button>`:''}
+          ${isAdmin&&(t.idFront||t.idBack)?`<button class="btn-s purple" onclick="viewID('${t.id}')">🔒 View ID</button>`:''}
+          <button class="btn-s" onclick="openPay('${t.id}')">💰 Payment</button>
+          ${isAdmin?`<button class="btn-s red" onclick="archiveTenant('${t.id}','${t.firstName} ${t.lastName}')">🗑 Archive</button>`:`<button class="btn-s red" onclick="reqArchive('${t.id}','${t.firstName} ${t.lastName}')">Request Archive</button>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ADD/EDIT TENANT
+async function openAddTenant(){
+  editTenantId=null; idFrontData=null; idBackData=null;
+  $('tModalTitle').textContent='Add New Tenant';
+  $('tSaveBtn').textContent='Add Tenant';
+  ['t-fn','t-ln','t-addr','t-phone','t-email','t-rate','t-due','t-notes'].forEach(id=>{ const el=$(id); if(el)el.value=''; });
+  $('t-fam').value='2'; $('t-status').value='active';
+  $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none';
+  $('idBackUpload').style.display='block'; $('idBackLocked').style.display='none';
+  $('idFrontPreview').style.display='none'; $('idBackPreview').style.display='none';
+  if(!machines.length){ try{ const s=await db.collection('machines').orderBy('machineNum').get(); machines=s.docs.map(d=>({id:d.id,...d.data()})); }catch(e){} }
+  fillMachineDropdowns();
+  $('tModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+async function openEditTenant(id){
+  const t=tenants.find(x=>x.id===id); if(!t)return;
+  editTenantId=id; idFrontData=null; idBackData=null;
+  $('tModalTitle').textContent='Edit Tenant';
+  $('tSaveBtn').textContent='Save Changes';
+  $('t-fn').value=t.firstName||''; $('t-ln').value=t.lastName||'';
+  $('t-addr').value=t.address||''; $('t-phone').value=t.phone||'';
+  $('t-email').value=t.email||''; $('t-rate').value=t.monthlyRate||'';
+  $('t-fam').value=t.familySize||2; $('t-due').value=t.dueDay||'';
+  $('t-status').value=t.status||'active'; $('t-notes').value=t.notes||'';
+  if(t.idFront){ $('idFrontUpload').style.display='none'; $('idFrontLocked').style.display='block'; }
+  else { $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none'; $('idFrontPreview').style.display='none'; }
+  if(t.idBack){ $('idBackUpload').style.display='none'; $('idBackLocked').style.display='block'; }
+  else { $('idBackUpload').style.display='block'; $('idBackLocked').style.display='none'; $('idBackPreview').style.display='none'; }
+  if(!machines.length){ try{ const s=await db.collection('machines').orderBy('machineNum').get(); machines=s.docs.map(d=>({id:d.id,...d.data()})); }catch(e){} }
+  fillMachineDropdowns(t.washerId,t.dryerId);
+  $('tModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function fillMachineDropdowns(wId='',dId=''){
+  const w=machines.filter(m=>m.type==='washer');
+  const d=machines.filter(m=>m.type==='dryer');
+  $('t-washer').innerHTML='<option value="">None</option>'+w.map(m=>`<option value="${m.id}"${m.id===wId?' selected':''}>#${m.machineNum} ${m.brand} ${m.model}</option>`).join('');
+  $('t-dryer').innerHTML='<option value="">None</option>'+d.map(m=>`<option value="${m.id}"${m.id===dId?' selected':''}>#${m.machineNum} ${m.brand} ${m.model}</option>`).join('');
+}
+
+function previewID(input,side){
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    if(side==='front'){ idFrontData=e.target.result; $('idFrontPreview').src=e.target.result; $('idFrontPreview').style.display='block'; }
+    else { idBackData=e.target.result; $('idBackPreview').src=e.target.result; $('idBackPreview').style.display='block'; }
+  };
+  r.readAsDataURL(file);
+}
+
+async function saveTenant(){
+  const fn=$('t-fn').value.trim(), ln=$('t-ln').value.trim();
+  if(!fn||!ln){ toast('First and last name required'); return; }
+  const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
+  const data={
+    firstName:fn, lastName:ln,
+    address:$('t-addr').value.trim(), phone:$('t-phone').value.trim(),
+    email:$('t-email').value.trim(), monthlyRate:parseFloat($('t-rate').value)||85,
+    familySize:parseInt($('t-fam').value)||1, dueDay:$('t-due').value||'',
+    status:$('t-status').value, notes:$('t-notes').value.trim(),
+    washerId:$('t-washer').value, dryerId:$('t-dryer').value,
+    employeeId:me.id, employeeName:me.name||me.username,
+  };
+  const existing=editTenantId?tenants.find(x=>x.id===editTenantId):null;
+  if(idFrontData&&(!existing||!existing.idFront)){ data.idFront=idFrontData; data.idLockedAt=new Date().toISOString(); }
+  if(idBackData&&(!existing||!existing.idBack)){ data.idBack=idBackData; }
+  try{
+    if(editTenantId){ await db.collection('tenants').doc(editTenantId).update(data); toast('Tenant updated'); }
+    else { data.tenantID=genID(); data.createdAt=new Date().toISOString().split('T')[0]; await db.collection('tenants').add(data); toast('Tenant added — ID: '+data.tenantID); }
+    closeM('tModal'); loadAll();
+  }catch(e){ toast('Error: '+e.message); }
+  btn.textContent=editTenantId?'Save Changes':'Add Tenant'; btn.disabled=false;
+}
+
+async function archiveTenant(id,name){
+  if(!confirm('Archive '+name+'? Record is kept permanently.'))return;
+  try{ await db.collection('tenants').doc(id).update({status:'archived',archivedAt:new Date().toISOString()}); loadAll(); toast('Archived'); }
+  catch(e){ toast('Error'); }
+}
+
+async function reqArchive(id,name){
+  if(!confirm('Request to archive '+name+'? Admin must approve.'))return;
+  try{
+    await db.collection('approvals').add({type:'archive',tenantId:id,tenantName:name,employeeId:me.id,employeeName:me.name||me.username,description:'Archive request for '+name,submittedAt:new Date().toISOString(),status:'pending'});
+    toast('Request sent to admin');
+  }catch(e){ toast('Error'); }
+}
+
+function viewID(id){
+  const t=tenants.find(x=>x.id===id); if(!t)return;
+  $('viewFront').src=t.idFront||''; $('viewBack').src=t.idBack||'';
+  $('viewIDModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+// MACHINES
+function renderMachines(){
+  const el=$('machineList');
+  if(!machines.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">🔧</div><p>No machines yet.</p></div>'; return; }
+  el.innerHTML=machines.map(m=>{
+    const tenant=tenants.find(t=>t.washerId===m.id||t.dryerId===m.id);
+    const age=m.year?new Date().getFullYear()-parseInt(m.year):0;
+    const cc=m.condition==='good'?'c-good':m.condition==='watch'?'c-watch':'c-risk';
+    const cl=m.condition==='good'?'✅ Good':m.condition==='watch'?'⚠️ Watch':'🔴 High Risk';
+    const warn=getWarnings(m.brand,m.model,age);
+    return `<div class="mcard">
+      <div class="mhead">
+        <div class="mnum">#${m.machineNum||'?'}</div>
+        <div>
+          <div class="mname">${m.brand||'—'} ${m.model||''}</div>
+          <div class="mmeta">${m.type==='washer'?'🫧 Washer':'💨 Dryer'} · S/N: ${m.serial||'—'}</div>
+          <div class="mmeta">${age>0?age+' yrs old':''}${age>=10?' ⚠️':''}</div>
+        </div>
+        <span class="mcond ${cc}">${cl}</span>
+      </div>
+      <div class="tgrid">
+        <div><div class="fl">Assigned to</div><div class="fv">${tenant?tenant.firstName+' '+tenant.lastName:'Available'}</div></div>
+        <div><div class="fl">Year made</div><div class="fv">${m.year||'—'}</div></div>
+      </div>
+      ${warn?`<div class="warn-box">⚠️ Watch out: ${warn}</div>`:''}
+      ${m.notes?`<div style="font-size:12px;background:#f7f6f2;padding:8px 12px;border-radius:8px;margin-bottom:.75rem;">📝 ${m.notes}</div>`:''}
+      <div class="tactions">
+        <button class="btn-s" onclick="openEditMachine('${m.id}')">✏️ Edit</button>
+        <button class="btn-s red" onclick="delMachine('${m.id}')">🗑 Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getWarnings(brand,model,age){
+  const flags=[], b=(brand||'').toLowerCase(), m=(model||'').toLowerCase();
+  if(b.includes('samsung')&&m.includes('wf')) flags.push('Door latch, drum bearing');
+  if(b.includes('samsung')&&m.includes('wt')) flags.push('Pulsator assembly, lid switch');
+  if(b.includes('lg')&&m.includes('wt')) flags.push('Pulsator, hall sensor, control board');
+  if(b.includes('lg')&&m.includes('wm')) flags.push('Drain pump, door gasket');
+  if(b.includes('whirlpool')) flags.push('Lid switch, drain pump');
+  if(age>=10) flags.push('10+ years old — consider replacing');
+  return flags.join(' · ');
+}
+
+function openAddMachine(){
+  editMachineId=null; $('mModalTitle').textContent='Add Machine'; $('mSaveBtn').textContent='Add Machine';
+  ['m-num','m-brand','m-model','m-serial','m-year','m-notes'].forEach(id=>{ const el=$(id); if(el)el.value=''; });
+  $('m-type').value='washer'; $('m-cond').value='good'; $('mModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function openEditMachine(id){
+  const m=machines.find(x=>x.id===id); if(!m)return;
+  editMachineId=id; $('mModalTitle').textContent='Edit Machine'; $('mSaveBtn').textContent='Save';
+  $('m-num').value=m.machineNum||''; $('m-type').value=m.type||'washer';
+  $('m-brand').value=m.brand||''; $('m-model').value=m.model||'';
+  $('m-serial').value=m.serial||''; $('m-year').value=m.year||'';
+  $('m-cond').value=m.condition||'good'; $('m-notes').value=m.notes||'';
+  $('mModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+async function saveMachine(){
+  // Auto-generate number if missing
+  let num=$('m-num').value.trim();
+  if(!num){
+    const nums=machines.map(m=>parseInt(m.machineNum)||0);
+    num=String(nums.length?Math.max(...nums)+1:1).padStart(3,'0');
+  }
+  const data={machineNum:num,type:$('m-type').value,brand:$('m-brand').value.trim(),model:$('m-model').value.trim(),serial:$('m-serial').value.trim(),year:$('m-year').value,condition:$('m-cond').value,notes:$('m-notes').value.trim()};
+  try{
+    if(editMachineId){ await db.collection('machines').doc(editMachineId).update(data); toast('Machine updated'); }
+    else { await db.collection('machines').add({...data,createdAt:new Date().toISOString()}); toast('Machine added'); }
+    closeM('mModal'); loadAll();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function delMachine(id){
+  if(!confirm('Remove this machine?'))return;
+  try{ await db.collection('machines').doc(id).delete(); loadAll(); toast('Machine removed'); }catch(e){ toast('Error'); }
+}
+
+// PAYMENTS
+function renderPayments(){
+  const active=tenants.filter(t=>t.status==='active');
+  const paid=active.filter(t=>payStatus(t)==='paid');
+  const late=active.filter(t=>payStatus(t)==='late');
+  const due=active.filter(t=>payStatus(t)==='due');
+  const mo=active.reduce((s,t)=>s+(t.monthlyRate||0),0);
+  $('payMetrics').innerHTML=`
+    <div class="metric"><div class="mlabel">Monthly total</div><div class="mval">$${mo}</div></div>
+    <div class="metric"><div class="mlabel">Paid</div><div class="mval" style="color:#1baf7a;">${paid.length}</div></div>
+    <div class="metric"><div class="mlabel">Due soon</div><div class="mval" style="color:#f59e0b;">${due.length}</div></div>
+    <div class="metric"><div class="mlabel">Late</div><div class="mval" style="color:#e24b4a;">${late.length}</div></div>`;
+  $('payList').innerHTML=active.map(t=>{
+    const ps=payStatus(t);
+    const bc=ps==='paid'?'p-paid':ps==='late'?'p-late':'p-due';
+    const bl=ps==='paid'?'✓ Paid':ps==='late'?'⚠ Late':'Due soon';
+    return `<div style="background:white;border:1px solid #e2e0d8;border-radius:12px;padding:1rem;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+      <div class="av" style="flex-shrink:0;">${ini(t)}</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:600;">${t.firstName} ${t.lastName}</div>
+        <div style="font-size:12px;color:#898781;">Due ${t.dueDay?'every '+t.dueDay+'th':'—'} · $${t.monthlyRate}/mo</div>
+        ${t.lastPaidDate?`<div style="font-size:11px;color:#898781;">Last paid: ${new Date(t.lastPaidDate).toLocaleDateString()}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <span class="pay-badge ${bc}">${bl}</span>
+        <button class="btn-s" onclick="openPay('${t.id}')">Update</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openPay(id){
+  payingId=id;
+  const t=tenants.find(x=>x.id===id); if(!t)return;
+  $('payModalTitle').textContent=t.firstName+' '+t.lastName+' — Payment';
+  $('payInfo').innerHTML=`Monthly rate: <strong>$${t.monthlyRate}</strong><br>Due: <strong>${t.dueDay?'Every '+t.dueDay+'th':'Not set'}</strong><br>Zelle: <strong>krazykicks88@gmail.com</strong>`;
+  $('pay-date').value=new Date().toISOString().split('T')[0];
+  $('pay-amount').value=t.monthlyRate||'';
+  $('pay-notes').value='';
+  $('payModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+async function savePay(){
+  const t=tenants.find(x=>x.id===payingId); if(!t)return;
+  try{
+    await db.collection('tenants').doc(payingId).update({lastPaidDate:$('pay-date').value,lastPaidAmount:parseFloat($('pay-amount').value)||t.monthlyRate});
+    await db.collection('payments').add({tenantId:payingId,tenantName:t.firstName+' '+t.lastName,amount:parseFloat($('pay-amount').value)||t.monthlyRate,date:$('pay-date').value,notes:$('pay-notes').value,recordedBy:me.name||me.username,recordedAt:new Date().toISOString()});
+    closeM('payModal'); loadAll(); toast('Payment recorded');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// EMPLOYEES
+async function loadEmps(){
+  try{
+    const snap=await db.collection('users').where('role','==','employee').get();
+    const emps=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const el=$('empList');
+    if(!emps.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">👥</div><p>No employees yet.</p></div>'; return; }
+    el.innerHTML=emps.map(e=>{
+      const mt=tenants.filter(t=>t.employeeId===e.id&&t.status!=='archived');
+      const rev=mt.reduce((s,t)=>s+(t.monthlyRate||0),0);
+      return `<div class="ecard"><div class="eav">${(e.name||e.username||'?')[0].toUpperCase()}</div><div><div class="ename">${e.name||e.username}</div><div class="esub">@${e.username}</div></div><div class="estat">${mt.length} tenants · $${rev}/mo<br><span style="font-size:11px;color:#898781;">$${rev*12}/yr</span></div><button class="btn-s red" onclick="removeEmp('${e.id}','${(e.name||e.username).replace(/'/g,"\\'")}')">Remove</button></div>`;
+    }).join('');
+  }catch(e){ toast('Error loading employees'); }
+}
+
+function openAddEmp(){ ['e-name','e-user','e-pass'].forEach(id=>$(id).value=''); $('eModal').classList.add('show'); document.body.classList.add('modal-open'); }
+
+async function saveEmp(){
+  const name=$('e-name').value.trim(), user=$('e-user').value.trim().toLowerCase(), pass=$('e-pass').value;
+  if(!name||!user||!pass){ toast('Fill in all fields'); return; }
+  try{
+    const exists=await db.collection('users').where('username','==',user).get();
+    if(!exists.empty){ toast('Username taken'); return; }
+    await db.collection('users').add({name,username:user,password:pass,role:'employee',createdAt:new Date().toISOString()});
+    closeM('eModal'); loadEmps(); toast('Employee added');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function removeEmp(id,name){
+  if(!confirm('Remove '+name+'?'))return;
+  try{ await db.collection('users').doc(id).delete(); loadEmps(); toast('Removed'); }catch(e){ toast('Error'); }
+}
+
+// APPROVALS
+async function loadApprovals(){
+  try{
+    const snap=await db.collection('approvals').where('status','==','pending').get();
+    const list=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const el=$('approvalList');
+    const badge=$('apBadge');
+    if(list.length){ badge.style.display='inline'; badge.textContent=list.length; } else badge.style.display='none';
+    if(!list.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">✅</div><p>No pending approvals.</p></div>'; return; }
+    el.innerHTML=list.map(a=>`<div class="apcard"><div class="aphead"><p class="aptitle">${a.type==='archive'?'🗑 Archive Request':'🔧 Repair Submitted'}</p><span style="font-size:11px;color:#898781;">${new Date(a.submittedAt).toLocaleDateString()}</span></div><div class="apmeta">${a.description}<br/>By: <strong>${a.employeeName}</strong></div><div class="ap-btns"><button class="btn-approve" onclick="approveReq('${a.id}','${a.type}','${a.tenantId||''}')">✓ Approve</button><button class="btn-deny" onclick="denyReq('${a.id}')">✕ Deny</button></div></div>`).join('');
+  }catch(e){ toast('Error loading approvals'); }
+}
+
+async function approveReq(id,type,tenantId){
+  try{
+    await db.collection('approvals').doc(id).update({status:'approved',approvedAt:new Date().toISOString()});
+    if(type==='archive'&&tenantId) await db.collection('tenants').doc(tenantId).update({status:'archived'});
+    loadApprovals(); loadAll(); toast('Approved');
+  }catch(e){ toast('Error'); }
+}
+
+async function denyReq(id){
+  try{ await db.collection('approvals').doc(id).update({status:'denied'}); loadApprovals(); toast('Denied'); }catch(e){ toast('Error'); }
+}
+
+// EMP SCORECARD
+function getCommissionTier(count){
+  if(count>=11) return {pct:80,label:'🔥 80%',next:null,nextAt:null,color:'#6b21a8'};
+  if(count>=7)  return {pct:65,label:'⚡ 65%',next:80,nextAt:11,color:'#1a6fd4'};
+  if(count>=4)  return {pct:50,label:'💪 50%',next:65,nextAt:7,color:'#1baf7a'};
+  if(count>=1)  return {pct:35,label:'🌱 35%',next:50,nextAt:4,color:'#f59e0b'};
+  return {pct:0,label:'No signups yet',next:35,nextAt:1,color:'#898781'};
+}
+
+function renderEmpScorecard(){
+  const SIGNUP_FEE = 100;
+  const today = new Date().toISOString().split('T')[0];
+  const my = tenants.filter(t=>t.employeeId===me.id&&t.status!=='archived');
+  const todaySignups = my.filter(t=>t.createdAt===today);
+  const tier = getCommissionTier(todaySignups.length);
+  const todayEarnings = todaySignups.length * (SIGNUP_FEE * tier.pct / 100);
+  const totalSignups = my.length;
+  
+  // Progress to next tier
+  let progressBar = '';
+  if(tier.next !== null){
+    const needed = tier.nextAt - todaySignups.length;
+    const pct = Math.min(100, Math.round((todaySignups.length / tier.nextAt) * 100));
+    progressBar = `
+      <div style="margin-top:1rem;background:#f7f6f2;border-radius:10px;padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#52514e;margin-bottom:6px;">
+          <span>Progress to ${tier.next}% tier</span>
+          <span style="font-weight:600;">${todaySignups.length}/${tier.nextAt} signups</span>
+        </div>
+        <div style="height:8px;background:#e2e0d8;border-radius:99px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${tier.color};border-radius:99px;transition:width .3s;"></div>
+        </div>
+        <p style="font-size:12px;color:#898781;margin-top:6px;">Sign up <strong>${needed} more today</strong> to hit the ${tier.next}% tier (+$${Math.round((tier.next-tier.pct)*SIGNUP_FEE/100)} more per signup)</p>
+      </div>`;
+  } else {
+    progressBar = `<div style="margin-top:1rem;background:#f3e8ff;border-radius:10px;padding:12px 14px;text-align:center;font-size:13px;color:#6b21a8;font-weight:600;">🏆 Max tier reached — 80% per signup!</div>`;
+  }
+
+  $('empScorecard').innerHTML=`
+    <div class="scorecard">
+      <div class="sc-head">
+        <div class="sc-av">${(me.name||me.username||'?')[0].toUpperCase()}</div>
+        <div>
+          <div class="sc-name">${me.name||me.username}</div>
+          <div class="sc-sub">LI Laundry Club</div>
+        </div>
+      </div>
+
+      <!-- TODAY'S COMMISSION -->
+      <div style="background:${tier.color};border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;color:white;">
+        <div style="font-size:12px;opacity:.85;margin-bottom:4px;">TODAY'S COMMISSION TIER</div>
+        <div style="font-size:28px;font-weight:700;margin-bottom:2px;">${tier.label}</div>
+        <div style="font-size:13px;opacity:.9;">${todaySignups.length} signup${todaySignups.length!==1?'s':''} today · $${todayEarnings.toFixed(0)} earned</div>
+      </div>
+
+      <!-- STATS GRID -->
+      <div class="sc-stats">
+        <div class="sc-stat">
+          <div class="sc-n">$${todayEarnings.toFixed(0)}</div>
+          <div class="sc-l">Earned today</div>
+        </div>
+        <div class="sc-stat">
+          <div class="sc-n">${todaySignups.length}</div>
+          <div class="sc-l">Signups today</div>
+        </div>
+        <div class="sc-stat">
+          <div class="sc-n">${totalSignups}</div>
+          <div class="sc-l">Total signups</div>
+        </div>
+        <div class="sc-stat">
+          <div class="sc-n">$${Math.round(SIGNUP_FEE * tier.pct / 100)}</div>
+          <div class="sc-l">Per signup now</div>
+        </div>
+      </div>
+
+      <!-- PROGRESS BAR -->
+      ${progressBar}
+
+      <!-- ACTION BUTTONS -->
+      <div style="display:flex;gap:10px;margin-top:1.25rem;">
+        <button class="btn-add" style="flex:1;justify-content:center;" onclick="openAddTenant()">+ Sign Up New Tenant</button>
+        <button class="btn-tech ${techMode?'on':''}" id="techBtnScore" onclick="toggleTech()" style="flex-shrink:0;">🔧 Tech Mode</button>
+      </div>
+
+      <!-- RECENT SIGNUPS -->
+      ${todaySignups.length?`
+      <div style="margin-top:1.25rem;">
+        <p style="font-size:13px;font-weight:600;margin-bottom:.75rem;color:#52514e;">Today's signups</p>
+        ${todaySignups.map(t=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #e2e0d8;">
+          <div>
+            <div style="font-size:13px;font-weight:600;">${t.firstName} ${t.lastName}</div>
+            <div style="font-size:11px;color:#898781;">${t.tenantID||''}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;font-weight:600;color:#1baf7a;">+$${Math.round(SIGNUP_FEE*tier.pct/100)}</div>
+            <div style="font-size:11px;color:#898781;">${tier.pct}%</div>
+          </div>
+        </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:14px;font-weight:700;">
+          <span>Total today</span>
+          <span style="color:#1baf7a;">$${todayEarnings.toFixed(0)}</span>
+        </div>
+      </div>`:''}
+
+      <!-- ALL TIME -->
+      ${my.length?`
+      <div style="margin-top:.75rem;border-top:1px solid #e2e0d8;padding-top:.75rem;">
+        <p style="font-size:12px;color:#898781;text-align:center;">All time: ${totalSignups} signups</p>
+      </div>`:''}
+    </div>`;
+}
+
+// TECH MODE
+function toggleTech(){
+  techMode=!techMode;
+  const banner=$('techBanner');
+  if(techMode){ 
+    banner.style.display='block'; 
+    $('empView').style.display='none'; 
+    $('techView').style.display='block'; 
+    renderTechView(); 
+  } else { 
+    banner.style.display='none'; 
+    $('techView').style.display='none'; 
+    $('empView').style.display='block'; 
+    renderEmpScorecard(); 
+  }
+}
+
+function renderTechView(){
+  const repairs=tenants.filter(t=>t.status==='issue');
+  const el=$('techList');
+  if(!repairs.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">✅</div><p>No repair jobs right now.</p></div>'; return; }
+  el.innerHTML=repairs.map(t=>`<div style="background:white;border:1px solid #d8b4fe;border-radius:12px;padding:1.25rem;margin-bottom:12px;">
+    <div class="thead" style="margin-bottom:.75rem;">
+      <div class="av">${ini(t)}</div>
+      <div><div class="tname">${t.firstName} ${t.lastName}</div><div class="tmeta">📍 ${t.address||'—'}</div><div class="tmeta">📞 ${t.phone||'—'}</div></div>
+    </div>
+    ${t.notes?`<div style="font-size:12px;background:#fef9c3;padding:8px 12px;border-radius:8px;margin-bottom:.75rem;">⚠️ ${t.notes}</div>`:''}
+    <button class="btn-add" style="width:100%;justify-content:center;" onclick="openRepair('${t.id}')">🔧 Submit Repair</button>
+  </div>`).join('');
+}
+
+function openRepair(id){
+  repairingId=id; repairBefore=null; repairAfter=null;
+  $('r-issue').value=''; $('r-fix').value=''; $('r-parts').value='';
+  $('r-before-preview').style.display='none'; $('r-after-preview').style.display='none';
+  const t=tenants.find(x=>x.id===id);
+  if(t) $('repairInfo').innerHTML=`<strong>${t.firstName} ${t.lastName}</strong> · ${t.address||'—'}`;
+  $('repairModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function repairPhotoPreview(input,type){
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    if(type==='before'){ repairBefore=e.target.result; $('r-before-preview').src=e.target.result; $('r-before-preview').style.display='block'; }
+    else { repairAfter=e.target.result; $('r-after-preview').src=e.target.result; $('r-after-preview').style.display='block'; }
+  };
+  r.readAsDataURL(file);
+}
+
+async function submitRepair(){
+  const issue=$('r-issue').value.trim(), fix=$('r-fix').value.trim();
+  if(!issue||!fix){ toast('Describe the issue and fix'); return; }
+  const t=tenants.find(x=>x.id===repairingId);
+  try{
+    await db.collection('repairs').add({tenantId:repairingId,tenantName:t?t.firstName+' '+t.lastName:'',issue,fix,parts:$('r-parts').value.trim(),beforePhoto:repairBefore||'',afterPhoto:repairAfter||'',employeeId:me.id,employeeName:me.name||me.username,submittedAt:new Date().toISOString(),status:'pending'});
+    await db.collection('approvals').add({type:'repair',tenantId:repairingId,tenantName:t?t.firstName+' '+t.lastName:'',employeeId:me.id,employeeName:me.name||me.username,description:'Repair: '+issue,submittedAt:new Date().toISOString(),status:'pending'});
+    closeM('repairModal'); toast('Repair submitted for admin review');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// MODAL HELPERS
+function closeM(id){ $(id).classList.remove('show'); document.body.classList.remove('modal-open'); }
+function bgClose(e,id){ if(e.target===$(id)) closeM(id); }
+
+// KEYBOARD
+$('lPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+// CREATE ADMIN IF NOT EXISTS (runs silently in background)
+async function setupAdmin(){
+  try{
+    const snap=await db.collection('users').where('username','==','admin').get();
+    if(snap.empty) await db.collection('users').add({name:'Micah (Admin)',username:'admin',password:'LILaundry2026!',role:'admin',createdAt:new Date().toISOString()});
+  }catch(e){ console.log('Setup:',e.message); }
+}
+setupAdmin();
+</script>
+</body>
+</html>
