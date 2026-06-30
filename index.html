@@ -769,7 +769,6 @@ async function openAddTenant(){
   $('tSaveBtn').textContent='Add Tenant';
   ['t-fn','t-ln','t-addr','t-phone','t-email','t-rate','t-due','t-notes'].forEach(id=>{ const el=$(id); if(el)el.value=''; });
   $('t-fam').value='2'; $('t-status').value='active';
-  $('emailVerifiedBadge').style.display='none'; $('verifyCodeRow').style.display='none'; $('verifyHint').style.display='none'; $('verify-code-input').value='';
   $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none';
   $('idBackUpload').style.display='block'; $('idBackLocked').style.display='none';
   $('idFrontPreview').style.display='none'; $('idBackPreview').style.display='none';
@@ -789,8 +788,7 @@ async function openEditTenant(id){
   $('t-fam').value=t.familySize||2; $('t-due').value=t.dueDay||'';
   $('t-status').value=t.status||'active'; $('t-notes').value=t.notes||'';
   if(t.idFront){ $('idFrontUpload').style.display='none'; $('idFrontLocked').style.display='block'; }
-  else { $('emailVerifiedBadge').style.display='none'; $('verifyCodeRow').style.display='none'; $('verifyHint').style.display='none'; $('verify-code-input').value='';
-  $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none'; $('idFrontPreview').style.display='none'; }
+  else { $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none'; $('idFrontPreview').style.display='none'; }
   if(t.idBack){ $('idBackUpload').style.display='none'; $('idBackLocked').style.display='block'; }
   else { $('idBackUpload').style.display='block'; $('idBackLocked').style.display='none'; $('idBackPreview').style.display='none'; }
   if(!machines.length){ try{ const s=await db.collection('machines').orderBy('machineNum').get(); machines=s.docs.map(d=>({id:d.id,...d.data()})); }catch(e){} }
