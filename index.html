@@ -35,7 +35,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .tabs{display:flex;gap:4px;background:#f0efe9;padding:4px;border-radius:10px;margin-bottom:1.25rem;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .tab{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;color:#52514e;white-space:nowrap;border:none;background:none;}
 .tab.on{background:white;color:#1a6fd4;box-shadow:0 1px 4px rgba(0,0,0,.1);}
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.25rem;}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem;}
 .metric{background:white;border-radius:10px;padding:.875rem;border:1px solid #e2e0d8;}
 .mlabel{font-size:11px;color:#898781;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
 .mval{font-size:22px;font-weight:700;color:#0f0f0f;}
@@ -599,43 +599,62 @@ function renderMetrics(t){
   const pct=Math.min(100,Math.round((mo/goal)*100));
   const late=t.filter(x=>payStatus(x)==='late').length;
   const remaining=Math.max(0,goal-mo);
+  const activeCount=t.filter(x=>x.status==='active').length;
   
-  // SVG circle progress
-  const r=24, circ=2*Math.PI*r;
+  const r=20, circ=2*Math.PI*r;
   const dash=circ*(pct/100);
   const color=pct>=100?'#1baf7a':pct>=70?'#1a6fd4':'#f59e0b';
 
   $('metricsGrid').innerHTML=`
-    <div class="metric"><div class="mlabel">Active tenants</div><div class="mval" style="color:#1a6fd4;">${t.length}</div><div class="msub">${t.filter(x=>x.status==='active').length} active</div></div>
-    <div class="metric"><div class="mlabel">Monthly revenue</div><div class="mval">$${mo.toLocaleString()}</div><div class="msub">$${(mo*12).toLocaleString()}/yr</div></div>
-    <div class="metric" style="display:flex;align-items:center;gap:12px;grid-column:span 2;">
-      <div style="position:relative;width:58px;height:58px;flex-shrink:0;">
-        <svg width="58" height="58" style="transform:rotate(-90deg);">
-          <circle cx="29" cy="29" r="${r}" fill="none" stroke="#e2e0d8" stroke-width="6"/>
-          <circle cx="29" cy="29" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
-        </svg>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-          <span style="font-size:12px;font-weight:700;color:${color};">${pct}%</span>
-        </div>
-      </div>
-      <div style="flex:1;">
-        <div class="mlabel">Monthly goal</div>
-        <div style="font-size:20px;font-weight:700;color:${pct>=100?'#1baf7a':'#0f0f0f'};">${pct>=100?'✓ Reached!':'$'+remaining+' to go'}</div>
-        <div style="font-size:12px;color:#898781;margin-top:2px;">$${mo} of $${goal}/mo</div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-          <input type="number" id="goalInput" value="${goal}" style="width:80px;padding:4px 8px;border:1.5px solid #e2e0d8;border-radius:6px;font-size:13px;" onkeydown="if(event.key==='Enter')updateGoal()"/>
-          <button onclick="updateGoal()" style="padding:4px 10px;background:#1a6fd4;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Set</button>
-        </div>
-      </div>
+    <div class="metric">
+      <div class="mlabel">Active tenants</div>
+      <div class="mval" style="color:#1a6fd4;">${t.length}</div>
+      <div class="msub">${activeCount} active</div>
     </div>
-    <div class="metric"><div class="mlabel">Late payments</div><div class="mval" style="color:${late>0?'#e24b4a':'#1baf7a'}">${late}</div></div>`;
+    <div class="metric">
+      <div class="mlabel">Late payments</div>
+      <div class="mval" style="color:${late>0?'#e24b4a':'#1baf7a'}">${late}</div>
+      <div class="msub">${late>0?'needs attention':'all clear'}</div>
+    </div>
+    <div class="metric">
+      <div class="mlabel">Monthly revenue</div>
+      <div class="mval">$${mo.toLocaleString()}</div>
+      <div class="msub">$${(mo*12).toLocaleString()}/yr</div>
+    </div>
+    <div class="metric" style="cursor:pointer;" onclick="openGoalEdit()">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="position:relative;width:42px;height:42px;flex-shrink:0;">
+          <svg width="42" height="42" style="transform:rotate(-90deg);">
+            <circle cx="21" cy="21" r="${r}" fill="none" stroke="#e2e0d8" stroke-width="4"/>
+            <circle cx="21" cy="21" r="${r}" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:10px;font-weight:700;color:${color};">${pct}%</span>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="mlabel" style="margin-bottom:2px;">Goal</div>
+          <div style="font-size:14px;font-weight:700;color:${pct>=100?'#1baf7a':'#0f0f0f'};white-space:nowrap;">${pct>=100?'✓ Done':'$'+remaining+' left'}</div>
+        </div>
+      </div>
+      <div id="goalEditRow" style="display:none;margin-top:8px;align-items:center;gap:6px;">
+        <input type="number" id="goalInput" value="${goal}" style="width:100%;padding:6px 8px;border:1.5px solid #e2e0d8;border-radius:6px;font-size:13px;" onkeydown="if(event.key==='Enter'){event.stopPropagation();updateGoal();}" onclick="event.stopPropagation();"/>
+        <button onclick="event.stopPropagation();updateGoal();" style="padding:6px 12px;background:#1a6fd4;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">Save</button>
+      </div>
+    </div>`;
+}
+
+function openGoalEdit(){
+  const row=$('goalEditRow');
+  const showing = row.style.display==='flex';
+  row.style.display = showing ? 'none' : 'flex';
+  if(!showing) setTimeout(()=>$('goalInput').focus(),50);
 }
 
 function updateGoal(){
   const val = parseInt($('goalInput').value);
   if(!val||val<1){ toast('Enter a valid goal amount'); return; }
   saveGoal(val);
-  // Re-render metrics with new goal
   const active=tenants.filter(t=>t.status==='active');
   renderMetrics(active);
 }
