@@ -88,6 +88,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .sc-n{font-size:24px;font-weight:700;color:#1a6fd4;}
 .sc-l{font-size:11px;color:#898781;margin-top:4px;}
 
+/* LEADS - horizontal cards */
+.lead-card{background:white;border:1px solid #e2e0d8;border-radius:12px;padding:.875rem 1rem;margin-bottom:10px;display:flex;align-items:center;gap:12px;}
+.lead-av{width:40px;height:40px;border-radius:50%;background:#f3e8ff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#6b21a8;flex-shrink:0;}
+.lead-info{flex:1;min-width:0;}
+.lead-name{font-size:14px;font-weight:600;}
+.lead-meta{font-size:11px;color:#898781;margin-top:2px;}
+.lead-sched{font-size:11px;color:#6b21a8;margin-top:3px;font-weight:600;background:#f3e8ff;display:inline-block;padding:2px 8px;border-radius:99px;}
+.lead-status{font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600;flex-shrink:0;}
+.lst-new{background:#e8f0fb;color:#1a6fd4;}
+.lst-scheduled{background:#f3e8ff;color:#6b21a8;}
+.lst-followup{background:#fef9c3;color:#854d0e;}
+.lst-closed{background:#f1f5f9;color:#94a3b8;}
+.lead-actions-row{display:flex;gap:6px;flex-shrink:0;}
+.lead-checkbox{width:20px;height:20px;flex-shrink:0;cursor:pointer;}
+
+/* ROUTE */
+.route-stop{background:white;border:2px solid #e2e0d8;border-radius:12px;padding:1rem;margin-bottom:10px;}
+.route-stop.done{border-color:#1baf7a;background:#f0fdf4;opacity:.7;}
+.route-stop-head{display:flex;align-items:center;gap:10px;margin-bottom:.5rem;}
+.route-num{width:28px;height:28px;border-radius:50%;background:#6b21a8;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.route-type-badge{font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600;}
+.rt-assess{background:#e8f0fb;color:#1a6fd4;}
+.rt-delivery{background:#dcfce7;color:#166534;}
+.route-actions{display:flex;gap:8px;margin-top:.75rem;flex-wrap:wrap;}
+.btn-route{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;flex:1;min-width:90px;}
+.btn-signup{background:#1baf7a;color:white;}
+.btn-interested{background:#fef9c3;color:#854d0e;border:1px solid #fcd34d;}
+.btn-notint{background:#fef2f2;color:#e24b4a;border:1px solid #fca5a5;}
+
 /* MACHINE */
 .mcard{background:white;border:1px solid #e2e0d8;border-radius:12px;padding:1.25rem;margin-bottom:12px;}
 .mhead{display:flex;align-items:center;gap:12px;margin-bottom:1rem;}
@@ -218,6 +247,7 @@ body.modal-open{overflow:hidden;}
     <div class="brand">🧺 LI Laundry Club</div>
     <div class="topbar-right">
       <span class="chip" id="userChip"></span>
+      <button class="btn-tech" id="routeBtn" style="display:none;background:#f3e8ff;color:#6b21a8;border-color:#d8b4fe;position:relative;" onclick="openTodayRoute()">🗺️ Route <span id="routeBadge" style="display:none;background:#e24b4a;color:white;border-radius:99px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
       <button class="btn-tech" id="techBtn" style="display:none;" onclick="toggleTech()">🔧 Tech Mode</button><!-- hidden, shown in scorecard -->
       <button class="signout" onclick="doLogout()">Sign out</button>
     </div>
@@ -228,6 +258,7 @@ body.modal-open{overflow:hidden;}
     <!-- ADMIN TABS -->
     <div class="tabs" id="adminTabs" style="display:none;">
       <button class="tab on" onclick="showTab('tenants',this)">Tenants</button>
+      <button class="tab" onclick="showTab('leads',this)">Leads</button>
       <button class="tab" onclick="showTab('machines',this)">Machines</button>
       <button class="tab" onclick="showTab('payments',this)">Payments</button>
       <button class="tab" onclick="showTab('employees',this)">Employees</button>
@@ -249,6 +280,27 @@ body.modal-open{overflow:hidden;}
     <div id="tab-machines" style="display:none;">
       <div class="sec-head"><p class="sec-title">Machines</p><button class="btn-add" onclick="openAddMachine()">+ Add Machine</button></div>
       <div id="machineList"></div>
+    </div>
+
+    <!-- LEADS -->
+    <div id="tab-leads" style="display:none;">
+      <div class="sec-head">
+        <p class="sec-title">Leads</p>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-add" style="background:#6b21a8;" onclick="openCreateRoute()">🗺️ Create Route</button>
+          <button class="btn-add" onclick="openAddLead()">+ Add Lead</button>
+        </div>
+      </div>
+      <div class="sec-head" style="margin-top:-.5rem;margin-bottom:1rem;">
+        <div class="tabs" style="margin-bottom:0;flex:1;">
+          <button class="tab on" onclick="filterLeads('all',this)">All</button>
+          <button class="tab" onclick="filterLeads('new',this)">New</button>
+          <button class="tab" onclick="filterLeads('scheduled',this)">Scheduled</button>
+          <button class="tab" onclick="filterLeads('followup',this)">Follow Up</button>
+          <button class="tab" onclick="filterLeads('closed',this)">Closed</button>
+        </div>
+      </div>
+      <div id="leadList"></div>
     </div>
 
     <!-- PAYMENTS -->
@@ -346,6 +398,72 @@ body.modal-open{overflow:hidden;}
     <div class="mfoot" style="justify-content:space-between;">
       <button class="btn-cancel" onclick="resendVerifyCode()">Resend code</button>
       <button class="btn-save" onclick="confirmVerifyAndSave()">Verify & save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT LEAD MODAL -->
+<div class="overlay" id="leadModal">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle" id="leadModalTitle">Add Lead</p><button class="mclose" onclick="closeM('leadModal')">✕</button></div>
+    <div class="row2">
+      <div class="fg"><label>First name</label><input id="ld-fn" placeholder="Jane"/></div>
+      <div class="fg"><label>Last name</label><input id="ld-ln" placeholder="Smith"/></div>
+    </div>
+    <div class="fg"><label>Address</label><input id="ld-addr" placeholder="123 Main St, Hempstead NY"/></div>
+    <div class="fg"><label>Phone</label><input id="ld-phone" placeholder="631-555-0100"/></div>
+    <div class="fg"><label>Notes</label><textarea id="ld-notes" placeholder="How they found us, what they're looking for..."></textarea></div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('leadModal')">Cancel</button>
+      <button class="btn-save" id="leadSaveBtn" onclick="saveLead()">Add Lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCHEDULE LEAD MODAL -->
+<div class="overlay" id="scheduleModal">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle">Schedule Appointment</p><button class="mclose" onclick="closeM('scheduleModal')">✕</button></div>
+    <div id="scheduleLeadInfo" style="background:#f7f6f2;border-radius:8px;padding:10px 12px;margin-bottom:1rem;font-size:13px;"></div>
+    <div class="fg"><label>Appointment type</label>
+      <select id="sch-type">
+        <option value="assessment">Assessment (15-20 min)</option>
+        <option value="delivery">Delivery / Install (up to 1 hr)</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="fg"><label>Date</label><input id="sch-date" type="date"/></div>
+      <div class="fg"><label>Time</label><input id="sch-time" type="time"/></div>
+    </div>
+    <p id="conflictWarning" style="display:none;font-size:12px;color:#e24b4a;background:#fef2f2;padding:8px 12px;border-radius:8px;margin-bottom:.5rem;"></p>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('scheduleModal')">Cancel</button>
+      <button class="btn-save" onclick="saveSchedule()">Confirm Schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE ROUTE MODAL -->
+<div class="overlay" id="routeModal">
+  <div class="modal">
+    <div class="mhead2"><p class="mtitle">Create Route</p><button class="mclose" onclick="closeM('routeModal')">✕</button></div>
+    <div class="fg"><label>Route date</label><input id="route-date" type="date" onchange="loadLeadsForRouteDate()"/></div>
+    <p style="font-size:12px;color:#898781;margin-bottom:1rem;">Select which scheduled stops to include in today's route:</p>
+    <div id="routeLeadPicker" style="margin-bottom:1rem;"></div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="closeM('routeModal')">Cancel</button>
+      <button class="btn-save" onclick="confirmCreateRoute()">Build Route</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW ROUTE MODAL -->
+<div class="overlay" id="viewRouteModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="mhead2"><p class="mtitle" id="viewRouteTitle">Today's Route</p><button class="mclose" onclick="closeM('viewRouteModal')">✕</button></div>
+    <div id="routeStopsList"></div>
+    <div class="mfoot">
+      <button class="btn-save" onclick="closeM('viewRouteModal')" style="width:100%;">Close</button>
     </div>
   </div>
 </div>
@@ -533,7 +651,9 @@ function enterApp(){
     $('tenantsTitle').textContent='All Tenants';
     $('empView').style.display='none';
     $('techView').style.display='none';
+    $('routeBtn').style.display='inline-flex';
     loadAll();
+    loadTodayRouteBadge();
   } else {
     // EMPLOYEE — hide ALL admin stuff, show only employee view
     $('adminTabs').style.display='none';
@@ -543,6 +663,7 @@ function enterApp(){
     $('tab-payments').style.display='none';
     $('tab-employees').style.display='none';
     $('tab-approvals').style.display='none';
+    $('tab-leads').style.display='none';
     $('reminders').style.display='none';
     $('empView').style.display='block';
     $('techView').style.display='none';
@@ -563,10 +684,12 @@ function doLogout(){
   $('adminTabs').style.display='none';
   $('metricsGrid').style.display='none';
   $('techBtn').style.display='none';
+  $('routeBtn').style.display='none';
   $('techBanner').style.display='none';
   $('empView').style.display='none';
   $('techView').style.display='none';
   $('tab-tenants').style.display='block';
+  $('tab-leads').style.display='none';
   $('tab-machines').style.display='none';
   $('tab-payments').style.display='none';
   $('tab-employees').style.display='none';
@@ -597,7 +720,8 @@ async function loadAll(){
 function showTab(name,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
-  ['tenants','machines','payments','employees','approvals'].forEach(t=>{ $(('tab-'+t)).style.display=t===name?'block':'none'; });
+  ['tenants','leads','machines','payments','employees','approvals'].forEach(t=>{ $(('tab-'+t)).style.display=t===name?'block':'none'; });
+  if(name==='leads') loadLeads();
   if(name==='machines') renderMachines();
   if(name==='payments') renderPayments();
   if(name==='employees') loadEmps();
@@ -877,30 +1001,26 @@ async function actuallySaveTenant(data){
       await db.collection('tenants').add(data);
       toast('Tenant added — ID: '+data.tenantID);
       if(data.email){
-        await sendWelcomeEmail(data);
+        sendWelcomeEmail(data);
       }
     }
     closeM('tModal');
     loadAll();
-  }catch(e){ toast('Error: '+e.message); alert('Save error: '+e.message); }
+  }catch(e){ toast('Error: '+e.message); }
   if(btn){ btn.textContent=data._editId?'Save Changes':'Add Tenant'; btn.disabled=false; }
 }
 
 async function sendWelcomeEmail(tenant){
   if(!tenant.email) return;
   try{
-    const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_WELCOME_TEMPLATE_ID, {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_WELCOME_TEMPLATE_ID, {
       to_email: tenant.email,
       to_name: tenant.firstName,
       tenant_id: tenant.tenantID,
       rate: tenant.monthlyRate,
       due_day: tenant.dueDay || 'TBD'
     });
-    alert('Welcome email SENT successfully to '+tenant.email+' (status: '+result.status+')');
-  }catch(e){
-    console.log('Welcome email error:',e);
-    alert('Welcome email FAILED: '+JSON.stringify(e.text||e.message||e));
-  }
+  }catch(e){ console.log('Welcome email error:',e); }
 }
 
 async function saveTenant(){
@@ -1334,6 +1454,318 @@ async function submitRepair(){
 }
 
 // MODAL HELPERS
+// ============ LEADS ============
+let allLeads = [];
+let leadFilter = 'all';
+let editLeadId = null;
+let scheduleLeadId = null;
+let selectedRouteLeadIds = [];
+
+async function loadLeads(){
+  try{
+    const snap = await db.collection('leads').orderBy('createdAt','desc').get();
+    allLeads = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderLeads();
+  }catch(e){ toast('Error loading leads: '+e.message); }
+}
+
+function filterLeads(f,el){
+  leadFilter=f;
+  document.querySelectorAll('#tab-leads .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderLeads();
+}
+
+function fmtSchedDate(dateStr,timeStr){
+  if(!dateStr) return '';
+  const d = new Date(dateStr+'T'+(timeStr||'00:00'));
+  const opts = {weekday:'short',month:'short',day:'numeric'};
+  const dateLabel = d.toLocaleDateString('en-US',opts);
+  const timeLabel = timeStr ? d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) : '';
+  return dateLabel + (timeLabel ? ' at '+timeLabel : '');
+}
+
+function renderLeads(){
+  const el = $('leadList');
+  let list = allLeads;
+  if(leadFilter==='new') list = allLeads.filter(l=>l.status==='new'||!l.status);
+  if(leadFilter==='scheduled') list = allLeads.filter(l=>l.status==='scheduled');
+  if(leadFilter==='followup') list = allLeads.filter(l=>l.status==='followup');
+  if(leadFilter==='closed') list = allLeads.filter(l=>l.status==='closed');
+
+  if(!list.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">📋</div><p>No leads here yet.</p></div>'; return; }
+
+  el.innerHTML = list.map(l=>{
+    const statusClass = l.status==='scheduled'?'lst-scheduled':l.status==='followup'?'lst-followup':l.status==='closed'?'lst-closed':'lst-new';
+    const statusLabel = l.status==='scheduled'?'Scheduled':l.status==='followup'?'Follow Up':l.status==='closed'?'Closed':'New';
+    const initials = ((l.firstName||'?')[0]+(l.lastName||'?')[0]).toUpperCase();
+    return `<div class="lead-card">
+      <div class="lead-av">${initials}</div>
+      <div class="lead-info">
+        <div class="lead-name">${l.firstName} ${l.lastName}</div>
+        <div class="lead-meta">📍 ${l.address||'no address'} · 📞 ${l.phone||'—'}</div>
+        ${l.scheduledDate?`<div class="lead-sched">📅 ${fmtSchedDate(l.scheduledDate,l.scheduledTime)} · ${l.appointmentType==='delivery'?'Delivery':'Assessment'}</div>`:''}
+      </div>
+      <span class="lead-status ${statusClass}">${statusLabel}</span>
+      <div class="lead-actions-row">
+        <button class="btn-s" onclick="openScheduleLead('${l.id}')">📅</button>
+        <button class="btn-s" onclick="openEditLead('${l.id}')">✏️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openAddLead(){
+  editLeadId = null;
+  $('leadModalTitle').textContent='Add Lead';
+  $('leadSaveBtn').textContent='Add Lead';
+  ['ld-fn','ld-ln','ld-addr','ld-phone','ld-notes'].forEach(id=>$(id).value='');
+  $('leadModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function openEditLead(id){
+  const l = allLeads.find(x=>x.id===id); if(!l)return;
+  editLeadId = id;
+  $('leadModalTitle').textContent='Edit Lead';
+  $('leadSaveBtn').textContent='Save Changes';
+  $('ld-fn').value=l.firstName||''; $('ld-ln').value=l.lastName||'';
+  $('ld-addr').value=l.address||''; $('ld-phone').value=l.phone||'';
+  $('ld-notes').value=l.notes||'';
+  $('leadModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+async function saveLead(){
+  const fn=$('ld-fn').value.trim(), ln=$('ld-ln').value.trim();
+  if(!fn||!ln){ toast('First and last name required'); return; }
+  const data = {
+    firstName:fn, lastName:ln,
+    address:$('ld-addr').value.trim(),
+    phone:$('ld-phone').value.trim(),
+    notes:$('ld-notes').value.trim(),
+  };
+  try{
+    if(editLeadId){
+      await db.collection('leads').doc(editLeadId).update(data);
+      toast('Lead updated');
+    } else {
+      data.status='new';
+      data.createdAt=new Date().toISOString();
+      data.employeeId=me.id; data.employeeName=me.name||me.username;
+      await db.collection('leads').add(data);
+      toast('Lead added');
+    }
+    closeM('leadModal');
+    loadLeads();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// ============ SCHEDULING ============
+function openScheduleLead(id){
+  const l = allLeads.find(x=>x.id===id); if(!l)return;
+  scheduleLeadId = id;
+  $('scheduleLeadInfo').innerHTML = `<strong>${l.firstName} ${l.lastName}</strong><br>📍 ${l.address||'—'}`;
+  $('sch-type').value = l.appointmentType||'assessment';
+  $('sch-date').value = l.scheduledDate||new Date().toISOString().split('T')[0];
+  $('sch-time').value = l.scheduledTime||'';
+  $('conflictWarning').style.display='none';
+  $('scheduleModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function checkTimeConflict(date,time,excludeLeadId){
+  if(!date||!time) return null;
+  const newStart = new Date(date+'T'+time);
+  const newEnd = new Date(newStart.getTime() + 30*60000); // 30 min buffer
+  for(const l of allLeads){
+    if(l.id===excludeLeadId || !l.scheduledDate || !l.scheduledTime) continue;
+    if(l.scheduledDate !== date) continue;
+    const existStart = new Date(l.scheduledDate+'T'+l.scheduledTime);
+    const duration = l.appointmentType==='delivery'?60:20;
+    const existEnd = new Date(existStart.getTime() + (duration+30)*60000);
+    if(newStart < existEnd && newEnd > existStart){
+      return l.firstName+' '+l.lastName+' at '+existStart.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    }
+  }
+  return null;
+}
+
+async function saveSchedule(){
+  const date = $('sch-date').value, time = $('sch-time').value;
+  if(!date||!time){ toast('Pick a date and time'); return; }
+  const conflict = checkTimeConflict(date,time,scheduleLeadId);
+  if(conflict){
+    $('conflictWarning').textContent = '⚠️ Conflicts with '+conflict+' (need 30 min buffer)';
+    $('conflictWarning').style.display='block';
+    return;
+  }
+  try{
+    await db.collection('leads').doc(scheduleLeadId).update({
+      status:'scheduled',
+      appointmentType:$('sch-type').value,
+      scheduledDate:date,
+      scheduledTime:time
+    });
+    closeM('scheduleModal');
+    loadLeads();
+    toast('Appointment scheduled');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// ============ ROUTES ============
+function openCreateRoute(){
+  $('route-date').value = new Date().toISOString().split('T')[0];
+  loadLeadsForRouteDate();
+  $('routeModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function loadLeadsForRouteDate(){
+  const date = $('route-date').value;
+  const scheduled = allLeads.filter(l=>l.scheduledDate===date && l.status==='scheduled');
+  selectedRouteLeadIds = scheduled.map(l=>l.id); // pre-select all by default
+  const el = $('routeLeadPicker');
+  if(!scheduled.length){ el.innerHTML='<p style="font-size:13px;color:#898781;">No leads scheduled for this date.</p>'; return; }
+  // sort by time
+  scheduled.sort((a,b)=>(a.scheduledTime||'').localeCompare(b.scheduledTime||''));
+  el.innerHTML = scheduled.map(l=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px;background:#f7f6f2;border-radius:8px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" class="lead-checkbox" checked data-leadid="${l.id}" onchange="toggleRouteLead('${l.id}',this.checked)"/>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${l.firstName} ${l.lastName}</div>
+        <div style="font-size:11px;color:#898781;">${l.scheduledTime} · ${l.appointmentType==='delivery'?'Delivery':'Assessment'} · ${l.address||'—'}</div>
+      </div>
+    </label>`).join('');
+}
+
+function toggleRouteLead(id,checked){
+  if(checked && !selectedRouteLeadIds.includes(id)) selectedRouteLeadIds.push(id);
+  if(!checked) selectedRouteLeadIds = selectedRouteLeadIds.filter(x=>x!==id);
+}
+
+async function confirmCreateRoute(){
+  if(!selectedRouteLeadIds.length){ toast('Select at least one stop'); return; }
+  const date = $('route-date').value;
+  const stops = allLeads.filter(l=>selectedRouteLeadIds.includes(l.id));
+  // sort by scheduled time as the simple ordering logic
+  stops.sort((a,b)=>(a.scheduledTime||'').localeCompare(b.scheduledTime||''));
+  try{
+    await db.collection('routes').add({
+      date, stops: stops.map(s=>({leadId:s.id,firstName:s.firstName,lastName:s.lastName,address:s.address,phone:s.phone,appointmentType:s.appointmentType,scheduledTime:s.scheduledTime,completed:false,outcome:null})),
+      createdBy:me.id, createdByName:me.name||me.username,
+      createdAt:new Date().toISOString()
+    });
+    closeM('routeModal');
+    toast('Route created for '+date+' with '+stops.length+' stops');
+    loadTodayRouteBadge();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function loadTodayRouteBadge(){
+  const today = new Date().toISOString().split('T')[0];
+  try{
+    const snap = await db.collection('routes').where('date','==',today).get();
+    const badge = $('routeBadge');
+    if(!badge) return;
+    let totalStops = 0, completedStops = 0;
+    snap.docs.forEach(d=>{ const r=d.data(); totalStops += r.stops.length; completedStops += r.stops.filter(s=>s.completed).length; });
+    if(totalStops > 0){
+      badge.style.display='inline-flex';
+      badge.textContent = (totalStops-completedStops);
+    } else {
+      badge.style.display='none';
+    }
+  }catch(e){}
+}
+
+async function openTodayRoute(){
+  const today = new Date().toISOString().split('T')[0];
+  try{
+    const snap = await db.collection('routes').where('date','==',today).get();
+    if(snap.empty){ toast('No route created for today yet'); return; }
+    const routeDoc = snap.docs[0];
+    renderRouteStops(routeDoc.id, routeDoc.data());
+    $('viewRouteTitle').textContent = "Today's Route — "+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+    $('viewRouteModal').classList.add('show'); document.body.classList.add('modal-open');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+function renderRouteStops(routeId, route){
+  const el = $('routeStopsList');
+  el.innerHTML = route.stops.map((s,i)=>{
+    const typeClass = s.appointmentType==='delivery'?'rt-delivery':'rt-assess';
+    const typeLabel = s.appointmentType==='delivery'?'Delivery':'Assessment';
+    const doneClass = s.completed?'done':'';
+    return `<div class="route-stop ${doneClass}">
+      <div class="route-stop-head">
+        <div class="route-num">${i+1}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">${s.firstName} ${s.lastName} ${s.completed?'✓':''}</div>
+          <div style="font-size:11px;color:#898781;">📍 ${s.address||'—'} · 📞 ${s.phone||'—'}</div>
+        </div>
+        <span class="route-type-badge ${typeClass}">${typeLabel}</span>
+      </div>
+      <div style="font-size:11px;color:#6b21a8;font-weight:600;">${s.scheduledTime}</div>
+      ${!s.completed?`
+      <div class="route-actions">
+        <button class="btn-route btn-signup" onclick="routeSignUpNow('${routeId}',${i})">✅ Sign Up Now</button>
+        <button class="btn-route btn-interested" onclick="routeMarkOutcome('${routeId}',${i},'interested')">🤔 Interested</button>
+        <button class="btn-route btn-notint" onclick="routeMarkOutcome('${routeId}',${i},'not_interested')">❌ Not Interested</button>
+      </div>`:`<div style="font-size:12px;color:#1baf7a;font-weight:600;margin-top:.5rem;">✓ Outcome: ${s.outcome||'completed'}</div>`}
+    </div>`;
+  }).join('');
+}
+
+async function routeMarkOutcome(routeId, stopIndex, outcome){
+  try{
+    const routeRef = db.collection('routes').doc(routeId);
+    const routeDoc = await routeRef.get();
+    const route = routeDoc.data();
+    route.stops[stopIndex].completed = true;
+    route.stops[stopIndex].outcome = outcome==='interested'?'Interested - Follow up':'Not interested';
+    await routeRef.update({stops: route.stops});
+
+    // update the lead status too
+    const leadId = route.stops[stopIndex].leadId;
+    if(leadId){
+      const newStatus = outcome==='interested' ? 'followup' : 'closed';
+      await db.collection('leads').doc(leadId).update({status:newStatus});
+    }
+    renderRouteStops(routeId, route);
+    loadLeads();
+    loadTodayRouteBadge();
+    toast('Stop updated');
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function routeSignUpNow(routeId, stopIndex){
+  try{
+    const routeRef = db.collection('routes').doc(routeId);
+    const routeDoc = await routeRef.get();
+    const route = routeDoc.data();
+    const stop = route.stops[stopIndex];
+
+    // mark stop complete
+    route.stops[stopIndex].completed = true;
+    route.stops[stopIndex].outcome = 'Signed up';
+    await routeRef.update({stops: route.stops});
+
+    // mark lead closed (converted)
+    if(stop.leadId){
+      await db.collection('leads').doc(stop.leadId).update({status:'closed', convertedToTenant:true});
+    }
+
+    // close route modal, open add tenant pre-filled
+    closeM('viewRouteModal');
+    await openAddTenant();
+    $('t-fn').value = stop.firstName||'';
+    $('t-ln').value = stop.lastName||'';
+    $('t-addr').value = stop.address||'';
+    $('t-phone').value = stop.phone||'';
+    toast('Pre-filled from lead — complete sign up below');
+    loadLeads();
+    loadTodayRouteBadge();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+
 function closeM(id){ $(id).classList.remove('show'); document.body.classList.remove('modal-open'); }
 function bgClose(e,id){ if(e.target===$(id)) closeM(id); }
 
