@@ -102,6 +102,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .lst-closed{background:#f1f5f9;color:#94a3b8;}
 .lead-actions-row{display:flex;gap:6px;flex-shrink:0;}
 .lead-checkbox{width:20px;height:20px;flex-shrink:0;cursor:pointer;}
+.time-slot{padding:10px 6px;border:1.5px solid #e2e0d8;border-radius:8px;font-size:12px;font-weight:600;text-align:center;cursor:pointer;background:white;color:#52514e;}
+.time-slot:hover{border-color:#1a6fd4;}
+.time-slot.taken{background:#f1f5f9;color:#cbd5e1;cursor:not-allowed;text-decoration:line-through;border-color:#e2e0d8;}
+.time-slot.selected{background:#1a6fd4;color:white;border-color:#1a6fd4;}
 
 /* ROUTE */
 .route-stop{background:white;border:2px solid #e2e0d8;border-radius:12px;padding:1rem;margin-bottom:10px;}
@@ -431,9 +435,11 @@ body.modal-open{overflow:hidden;}
         <option value="delivery">Delivery / Install (up to 1 hr)</option>
       </select>
     </div>
-    <div class="row2">
-      <div class="fg"><label>Date</label><input id="sch-date" type="date"/></div>
-      <div class="fg"><label>Time</label><input id="sch-time" type="time"/></div>
+    <div class="fg"><label>Date</label><input id="sch-date" type="date" onchange="renderTimeSlots()"/></div>
+    <div class="fg">
+      <label>Available time slots</label>
+      <div id="timeSlotPicker" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
+      <input type="hidden" id="sch-time" value=""/>
     </div>
     <p id="conflictWarning" style="display:none;font-size:12px;color:#e24b4a;background:#fef2f2;padding:8px 12px;border-radius:8px;margin-bottom:.5rem;"></p>
     <div class="mfoot">
@@ -1569,6 +1575,48 @@ function openScheduleLead(id){
   $('sch-time').value = l.scheduledTime||'';
   $('conflictWarning').style.display='none';
   $('scheduleModal').classList.add('show'); document.body.classList.add('modal-open');
+  renderTimeSlots();
+}
+
+// Generate slots 9am-6pm every 30 min
+function getAllSlots(){
+  const slots = [];
+  for(let h=9; h<18; h++){
+    for(let m=0; m<60; m+=30){
+      const hh = String(h).padStart(2,'0');
+      const mm = String(m).padStart(2,'0');
+      slots.push(hh+':'+mm);
+    }
+  }
+  return slots;
+}
+
+function fmtTime(time24){
+  if(!time24) return '';
+  const [h,m] = time24.split(':').map(Number);
+  const period = h>=12?'PM':'AM';
+  const h12 = h%12===0?12:h%12;
+  return h12+':'+String(m).padStart(2,'0')+' '+period;
+}
+
+function renderTimeSlots(){
+  const date = $('sch-date').value;
+  const el = $('timeSlotPicker');
+  if(!date){ el.innerHTML='<p style="font-size:12px;color:#898781;grid-column:span 3;">Pick a date first</p>'; return; }
+  const slots = getAllSlots();
+  const selected = $('sch-time').value;
+  el.innerHTML = slots.map(slot=>{
+    const conflict = checkTimeConflict(date, slot, scheduleLeadId);
+    const isTaken = !!conflict;
+    const isSelected = slot === selected;
+    return `<button type="button" class="time-slot ${isTaken?'taken':''} ${isSelected?'selected':''}" ${isTaken?'disabled':''} onclick="selectTimeSlot('${slot}')">${fmtTime(slot)}</button>`;
+  }).join('');
+}
+
+function selectTimeSlot(slot){
+  $('sch-time').value = slot;
+  $('conflictWarning').style.display='none';
+  renderTimeSlots();
 }
 
 function checkTimeConflict(date,time,excludeLeadId){
@@ -1582,7 +1630,7 @@ function checkTimeConflict(date,time,excludeLeadId){
     const duration = l.appointmentType==='delivery'?60:20;
     const existEnd = new Date(existStart.getTime() + (duration+30)*60000);
     if(newStart < existEnd && newEnd > existStart){
-      return l.firstName+' '+l.lastName+' at '+existStart.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      return l.firstName+' '+l.lastName+' at '+fmtTime(l.scheduledTime);
     }
   }
   return null;
@@ -1590,7 +1638,7 @@ function checkTimeConflict(date,time,excludeLeadId){
 
 async function saveSchedule(){
   const date = $('sch-date').value, time = $('sch-time').value;
-  if(!date||!time){ toast('Pick a date and time'); return; }
+  if(!date||!time){ toast('Pick a date and time slot'); return; }
   const conflict = checkTimeConflict(date,time,scheduleLeadId);
   if(conflict){
     $('conflictWarning').textContent = '⚠️ Conflicts with '+conflict+' (need 30 min buffer)';
@@ -1630,7 +1678,7 @@ function loadLeadsForRouteDate(){
       <input type="checkbox" class="lead-checkbox" checked data-leadid="${l.id}" onchange="toggleRouteLead('${l.id}',this.checked)"/>
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:600;">${l.firstName} ${l.lastName}</div>
-        <div style="font-size:11px;color:#898781;">${l.scheduledTime} · ${l.appointmentType==='delivery'?'Delivery':'Assessment'} · ${l.address||'—'}</div>
+        <div style="font-size:11px;color:#898781;">${fmtTime(l.scheduledTime)} · ${l.appointmentType==='delivery'?'Delivery':'Assessment'} · ${l.address||'—'}</div>
       </div>
     </label>`).join('');
 }
@@ -1689,26 +1737,37 @@ async function openTodayRoute(){
 
 function renderRouteStops(routeId, route){
   const el = $('routeStopsList');
-  el.innerHTML = route.stops.map((s,i)=>{
+  const remaining = route.stops.map((s,i)=>({...s, originalIndex:i})).filter(s=>!s.completed);
+  const completedCount = route.stops.filter(s=>s.completed).length;
+
+  let summary = '';
+  if(completedCount > 0){
+    summary = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;margin-bottom:1rem;font-size:12px;color:#166534;font-weight:600;">✓ ${completedCount} of ${route.stops.length} stops completed</div>`;
+  }
+
+  if(!remaining.length){
+    el.innerHTML = summary + `<div class="empty"><div style="font-size:40px;margin-bottom:12px;">🎉</div><p>All stops completed for today!</p></div>`;
+    return;
+  }
+
+  el.innerHTML = summary + remaining.map((s,displayIdx)=>{
     const typeClass = s.appointmentType==='delivery'?'rt-delivery':'rt-assess';
     const typeLabel = s.appointmentType==='delivery'?'Delivery':'Assessment';
-    const doneClass = s.completed?'done':'';
-    return `<div class="route-stop ${doneClass}">
+    return `<div class="route-stop">
       <div class="route-stop-head">
-        <div class="route-num">${i+1}</div>
+        <div class="route-num">${displayIdx+1}</div>
         <div style="flex:1;">
-          <div style="font-size:14px;font-weight:600;">${s.firstName} ${s.lastName} ${s.completed?'✓':''}</div>
+          <div style="font-size:14px;font-weight:600;">${s.firstName} ${s.lastName}</div>
           <div style="font-size:11px;color:#898781;">📍 ${s.address||'—'} · 📞 ${s.phone||'—'}</div>
         </div>
         <span class="route-type-badge ${typeClass}">${typeLabel}</span>
       </div>
-      <div style="font-size:11px;color:#6b21a8;font-weight:600;">${s.scheduledTime}</div>
-      ${!s.completed?`
+      <div style="font-size:11px;color:#6b21a8;font-weight:600;">${fmtTime(s.scheduledTime)}</div>
       <div class="route-actions">
-        <button class="btn-route btn-signup" onclick="routeSignUpNow('${routeId}',${i})">✅ Sign Up Now</button>
-        <button class="btn-route btn-interested" onclick="routeMarkOutcome('${routeId}',${i},'interested')">🤔 Interested</button>
-        <button class="btn-route btn-notint" onclick="routeMarkOutcome('${routeId}',${i},'not_interested')">❌ Not Interested</button>
-      </div>`:`<div style="font-size:12px;color:#1baf7a;font-weight:600;margin-top:.5rem;">✓ Outcome: ${s.outcome||'completed'}</div>`}
+        <button class="btn-route btn-signup" onclick="routeSignUpNow('${routeId}',${s.originalIndex})">✅ Sign Up Now</button>
+        <button class="btn-route btn-interested" onclick="routeMarkOutcome('${routeId}',${s.originalIndex},'interested')">🤔 Interested</button>
+        <button class="btn-route btn-notint" onclick="routeMarkOutcome('${routeId}',${s.originalIndex},'not_interested')">❌ Not Interested</button>
+      </div>
     </div>`;
   }).join('');
 }
