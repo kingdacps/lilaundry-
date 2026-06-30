@@ -913,22 +913,31 @@ async function saveTenant(){
   if(idBackData&&(!existing||!existing.idBack)){ data.idBack=idBackData; }
   if(editTenantId) data._editId = editTenantId;
 
-  // If new tenant with email - require verification first
-  if(emailVal && !editTenantId){
-    pendingTenantData = data;
-    $('verifyModalText').textContent = 'Sending code to '+emailVal+'...';
-    $('verify-code-input').value='';
-    $('verifyError').style.display='none';
-    $('verifyModal').classList.add('show');
-    document.body.classList.add('modal-open');
-    const ok = await sendVerifyCode(emailVal, fn);
-    $('verifyModalText').textContent = ok ? 'Code sent to '+emailVal+'. Ask the tenant to check their email.' : 'Failed to send — try resend';
+  // Editing existing tenant - just save, no verification needed
+  if(editTenantId){
+    const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
+    await actuallySaveTenant(data);
     return;
   }
 
-  // No email or editing existing - save directly
-  const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
-  await actuallySaveTenant(data);
+  // New tenant - no email entered, confirm before continuing
+  if(!emailVal){
+    const proceed = confirm('No email was entered for this tenant. Continue without sending a welcome email or verifying contact info?');
+    if(!proceed) return;
+    const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
+    await actuallySaveTenant(data);
+    return;
+  }
+
+  // New tenant with email - require verification first
+  pendingTenantData = data;
+  $('verifyModalText').textContent = 'Sending code to '+emailVal+'...';
+  $('verify-code-input').value='';
+  $('verifyError').style.display='none';
+  $('verifyModal').classList.add('show');
+  document.body.classList.add('modal-open');
+  const ok = await sendVerifyCode(emailVal, fn);
+  $('verifyModalText').textContent = ok ? 'Code sent to '+emailVal+'. Ask the tenant to check their email.' : 'Failed to send — try resend';
 }
 
 async function archiveTenant(id,name){
