@@ -1712,11 +1712,23 @@ async function loadTodayRouteBadge(){
     const snap = await db.collection('routes').where('date','==',today).get();
     const badge = $('routeBadge');
     if(!badge) return;
-    let totalStops = 0, completedStops = 0;
-    snap.docs.forEach(d=>{ const r=d.data(); totalStops += r.stops.length; completedStops += r.stops.filter(s=>s.completed).length; });
-    if(totalStops > 0){
+    if(!allLeads.length){
+      const leadSnap = await db.collection('leads').get();
+      allLeads = leadSnap.docs.map(d=>({id:d.id,...d.data()}));
+    }
+    let totalStops = 0, pendingStops = 0;
+    snap.docs.forEach(d=>{
+      const r=d.data();
+      totalStops += r.stops.length;
+      r.stops.forEach(s=>{
+        const lead = allLeads.find(l=>l.id===s.leadId);
+        const isResolved = s.completed || (lead && (lead.status==='closed'||lead.status==='followup'));
+        if(!isResolved) pendingStops++;
+      });
+    });
+    if(totalStops > 0 && pendingStops > 0){
       badge.style.display='inline-flex';
-      badge.textContent = (totalStops-completedStops);
+      badge.textContent = pendingStops;
     } else {
       badge.style.display='none';
     }
@@ -1726,6 +1738,10 @@ async function loadTodayRouteBadge(){
 async function openTodayRoute(){
   const today = new Date().toISOString().split('T')[0];
   try{
+    if(!allLeads.length){
+      const leadSnap = await db.collection('leads').get();
+      allLeads = leadSnap.docs.map(d=>({id:d.id,...d.data()}));
+    }
     const snap = await db.collection('routes').where('date','==',today).get();
     if(snap.empty){ toast('No route created for today yet'); return; }
     const routeDoc = snap.docs[0];
@@ -1737,8 +1753,12 @@ async function openTodayRoute(){
 
 function renderRouteStops(routeId, route){
   const el = $('routeStopsList');
-  const remaining = route.stops.map((s,i)=>({...s, originalIndex:i})).filter(s=>!s.completed);
-  const completedCount = route.stops.filter(s=>s.completed).length;
+  const remaining = route.stops.map((s,i)=>({...s, originalIndex:i})).filter(s=>{
+    const lead = allLeads.find(l=>l.id===s.leadId);
+    const isResolved = s.completed || (lead && (lead.status==='closed'||lead.status==='followup'));
+    return !isResolved;
+  });
+  const completedCount = route.stops.length - remaining.length;
 
   let summary = '';
   if(completedCount > 0){
