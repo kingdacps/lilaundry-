@@ -292,19 +292,7 @@ body.modal-open{overflow:hidden;}
     </div>
     <div class="fg"><label>Address</label><input id="t-addr" placeholder="123 Main St, Hempstead NY"/></div>
     <div class="fg"><label>Phone</label><input id="t-phone" placeholder="631-555-0100"/></div>
-    <div class="fg">
-      <label>Email</label>
-      <div style="display:flex;gap:8px;">
-        <input id="t-email" type="email" placeholder="jane@email.com" style="flex:1;" oninput="emailVerified=false;document.getElementById('emailVerifiedBadge').style.display='none';"/>
-        <button type="button" onclick="sendVerifyCode()" style="padding:11px 14px;background:#f7f6f2;border:1.5px solid #e2e0d8;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;color:#52514e;">Send code</button>
-      </div>
-      <div id="emailVerifiedBadge" style="display:none;margin-top:6px;"><span class="id-locked">✓ Email verified</span></div>
-      <div id="verifyCodeRow" style="display:none;margin-top:8px;gap:8px;align-items:center;">
-        <input id="verify-code-input" type="text" placeholder="Enter 6-digit code" maxlength="6" style="flex:1;padding:11px 14px;border:1.5px solid #e2e0d8;border-radius:8px;font-size:14px;"/>
-        <button type="button" onclick="checkVerifyCode()" style="padding:11px 16px;background:#1baf7a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Verify</button>
-      </div>
-      <p id="verifyHint" style="font-size:11px;color:#898781;margin-top:4px;display:none;">Code sent — ask the tenant to check their email and read it back to you.</p>
-    </div>
+    <div class="fg"><label>Email</label><input id="t-email" type="email" placeholder="jane@email.com"/></div>
     <div class="row2">
       <div class="fg"><label>Monthly rate ($)</label><input id="t-rate" type="number" placeholder="85"/></div>
       <div class="fg"><label>Family size</label><input id="t-fam" type="number" placeholder="2" min="1"/></div>
@@ -341,6 +329,23 @@ body.modal-open{overflow:hidden;}
     <div class="mfoot">
       <button class="btn-cancel" onclick="closeM('tModal')">Cancel</button>
       <button class="btn-save" id="tSaveBtn" onclick="saveTenant()">Add Tenant</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMAIL VERIFY MODAL -->
+<div class="overlay" id="verifyModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="mhead2"><p class="mtitle">Verify email</p><button class="mclose" onclick="cancelVerify()">✕</button></div>
+    <p style="font-size:13px;color:#898781;margin-bottom:1rem;" id="verifyModalText">Sending verification code...</p>
+    <div class="fg">
+      <label>Enter 6-digit code</label>
+      <input id="verify-code-input" type="text" placeholder="000000" maxlength="6" style="font-size:20px;text-align:center;letter-spacing:4px;"/>
+    </div>
+    <p id="verifyError" style="font-size:12px;color:#e24b4a;display:none;margin-bottom:.5rem;"></p>
+    <div class="mfoot" style="justify-content:space-between;">
+      <button class="btn-cancel" onclick="resendVerifyCode()">Resend code</button>
+      <button class="btn-save" onclick="confirmVerifyAndSave()">Verify & save</button>
     </div>
   </div>
 </div>
@@ -812,41 +817,72 @@ function previewID(input,side){
 
 function genCode(){ return String(Math.floor(100000+Math.random()*900000)); }
 
-async function sendVerifyCode(){
-  const email = $('t-email').value.trim();
-  if(!email || !email.includes('@')){ toast('Enter a valid email first'); return; }
-  const fn = $('t-fn').value.trim() || 'there';
+let pendingTenantData = null;
+
+async function sendVerifyCode(email, name){
   pendingVerifyCode = genCode();
   pendingVerifyEmail = email;
-  emailVerified = false;
-  $('emailVerifiedBadge').style.display='none';
-  
   try{
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: email,
-      to_name: fn,
+      to_name: name,
       code: pendingVerifyCode
     });
-    $('verifyCodeRow').style.display='flex';
-    $('verifyHint').style.display='block';
-    toast('Verification code sent to '+email);
+    return true;
   }catch(e){
     toast('Error sending email: '+(e.text||e.message||'check EmailJS setup'));
+    return false;
   }
 }
 
-function checkVerifyCode(){
+function cancelVerify(){
+  closeM('verifyModal');
+  pendingTenantData = null;
+  pendingVerifyCode = null;
+  pendingVerifyEmail = null;
+}
+
+async function resendVerifyCode(){
+  if(!pendingTenantData) return;
+  $('verifyModalText').textContent = 'Resending code...';
+  const ok = await sendVerifyCode(pendingTenantData.email, pendingTenantData.firstName);
+  $('verifyModalText').textContent = ok ? 'Code resent to '+pendingTenantData.email : 'Failed to resend code';
+  $('verify-code-input').value='';
+  $('verifyError').style.display='none';
+}
+
+async function confirmVerifyAndSave(){
   const entered = $('verify-code-input').value.trim();
-  if(!entered){ toast('Enter the code'); return; }
-  if(entered === pendingVerifyCode && $('t-email').value.trim() === pendingVerifyEmail){
-    emailVerified = true;
-    $('emailVerifiedBadge').style.display='block';
-    $('verifyCodeRow').style.display='none';
-    $('verifyHint').style.display='none';
-    toast('Email verified!');
-  } else {
-    toast('Incorrect code, try again');
+  const errEl = $('verifyError');
+  if(!entered){ errEl.textContent='Enter the code'; errEl.style.display='block'; return; }
+  if(entered !== pendingVerifyCode){
+    errEl.textContent='Incorrect code. Try again or resend.';
+    errEl.style.display='block';
+    return;
   }
+  errEl.style.display='none';
+  closeM('verifyModal');
+  await actuallySaveTenant(pendingTenantData);
+  pendingTenantData = null; pendingVerifyCode = null; pendingVerifyEmail = null;
+}
+
+async function actuallySaveTenant(data){
+  const btn=$('tSaveBtn');
+  try{
+    if(data._editId){
+      await db.collection('tenants').doc(data._editId).update(data);
+      toast('Tenant updated');
+    } else {
+      data.tenantID=genID();
+      data.createdAt=new Date().toISOString().split('T')[0];
+      await db.collection('tenants').add(data);
+      toast('Tenant added — ID: '+data.tenantID);
+      if(data.email) sendWelcomeEmail(data);
+    }
+    closeM('tModal');
+    loadAll();
+  }catch(e){ toast('Error: '+e.message); }
+  if(btn){ btn.textContent=data._editId?'Save Changes':'Add Tenant'; btn.disabled=false; }
 }
 
 async function sendWelcomeEmail(tenant){
@@ -855,7 +891,7 @@ async function sendWelcomeEmail(tenant){
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: tenant.email,
       to_name: tenant.firstName,
-      code: 'Welcome! Your tenant ID is '+tenant.tenantID+'. Monthly rate: $'+tenant.monthlyRate+', due every '+(tenant.dueDay||'TBD')+'th. Send Zelle payments to krazykicks88@gmail.com. Questions? Reply to this email.'
+      code: 'Welcome to LI Laundry Club! Your tenant ID is '+tenant.tenantID+'. Monthly rate: $'+tenant.monthlyRate+', due every '+(tenant.dueDay||'TBD')+'th. Send Zelle payments to krazykicks88@gmail.com.'
     });
   }catch(e){ console.log('Welcome email error:',e); }
 }
@@ -864,15 +900,11 @@ async function saveTenant(){
   const fn=$('t-fn').value.trim(), ln=$('t-ln').value.trim();
   if(!fn||!ln){ toast('First and last name required'); return; }
   const emailVal = $('t-email').value.trim();
-  if(emailVal && !emailVerified && !editTenantId){
-    toast('Please verify the email first by sending and entering the code');
-    return;
-  }
-  const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
+
   const data={
     firstName:fn, lastName:ln,
     address:$('t-addr').value.trim(), phone:$('t-phone').value.trim(),
-    email:$('t-email').value.trim(), monthlyRate:parseFloat($('t-rate').value)||85,
+    email:emailVal, monthlyRate:parseFloat($('t-rate').value)||85,
     familySize:parseInt($('t-fam').value)||1, dueDay:$('t-due').value||'',
     status:$('t-status').value, notes:$('t-notes').value.trim(),
     washerId:$('t-washer').value, dryerId:$('t-dryer').value,
@@ -881,17 +913,24 @@ async function saveTenant(){
   const existing=editTenantId?tenants.find(x=>x.id===editTenantId):null;
   if(idFrontData&&(!existing||!existing.idFront)){ data.idFront=idFrontData; data.idLockedAt=new Date().toISOString(); }
   if(idBackData&&(!existing||!existing.idBack)){ data.idBack=idBackData; }
-  try{
-    if(editTenantId){ await db.collection('tenants').doc(editTenantId).update(data); toast('Tenant updated'); }
-    else {
-      data.tenantID=genID(); data.createdAt=new Date().toISOString().split('T')[0];
-      await db.collection('tenants').add(data);
-      toast('Tenant added — ID: '+data.tenantID);
-      if(data.email) sendWelcomeEmail(data);
-    }
-    closeM('tModal'); emailVerified=false; pendingVerifyCode=null; pendingVerifyEmail=null; loadAll();
-  }catch(e){ toast('Error: '+e.message); }
-  btn.textContent=editTenantId?'Save Changes':'Add Tenant'; btn.disabled=false;
+  if(editTenantId) data._editId = editTenantId;
+
+  // If new tenant with email - require verification first
+  if(emailVal && !editTenantId){
+    pendingTenantData = data;
+    $('verifyModalText').textContent = 'Sending code to '+emailVal+'...';
+    $('verify-code-input').value='';
+    $('verifyError').style.display='none';
+    $('verifyModal').classList.add('show');
+    document.body.classList.add('modal-open');
+    const ok = await sendVerifyCode(emailVal, fn);
+    $('verifyModalText').textContent = ok ? 'Code sent to '+emailVal+'. Ask the tenant to check their email.' : 'Failed to send — try resend';
+    return;
+  }
+
+  // No email or editing existing - save directly
+  const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
+  await actuallySaveTenant(data);
 }
 
 async function archiveTenant(id,name){
