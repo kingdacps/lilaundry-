@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>LI Laundry Club</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f2744;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-x:hidden;width:100%;}
@@ -291,7 +292,19 @@ body.modal-open{overflow:hidden;}
     </div>
     <div class="fg"><label>Address</label><input id="t-addr" placeholder="123 Main St, Hempstead NY"/></div>
     <div class="fg"><label>Phone</label><input id="t-phone" placeholder="631-555-0100"/></div>
-    <div class="fg"><label>Email</label><input id="t-email" type="email" placeholder="jane@email.com"/></div>
+    <div class="fg">
+      <label>Email</label>
+      <div style="display:flex;gap:8px;">
+        <input id="t-email" type="email" placeholder="jane@email.com" style="flex:1;" oninput="emailVerified=false;document.getElementById('emailVerifiedBadge').style.display='none';"/>
+        <button type="button" onclick="sendVerifyCode()" style="padding:11px 14px;background:#f7f6f2;border:1.5px solid #e2e0d8;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;color:#52514e;">Send code</button>
+      </div>
+      <div id="emailVerifiedBadge" style="display:none;margin-top:6px;"><span class="id-locked">✓ Email verified</span></div>
+      <div id="verifyCodeRow" style="display:none;margin-top:8px;gap:8px;align-items:center;">
+        <input id="verify-code-input" type="text" placeholder="Enter 6-digit code" maxlength="6" style="flex:1;padding:11px 14px;border:1.5px solid #e2e0d8;border-radius:8px;font-size:14px;"/>
+        <button type="button" onclick="checkVerifyCode()" style="padding:11px 16px;background:#1baf7a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Verify</button>
+      </div>
+      <p id="verifyHint" style="font-size:11px;color:#898781;margin-top:4px;display:none;">Code sent — ask the tenant to check their email and read it back to you.</p>
+    </div>
     <div class="row2">
       <div class="fg"><label>Monthly rate ($)</label><input id="t-rate" type="number" placeholder="85"/></div>
       <div class="fg"><label>Family size</label><input id="t-fam" type="number" placeholder="2" min="1"/></div>
@@ -441,6 +454,16 @@ const FB = {
 };
 firebase.initializeApp(FB);
 const db = firebase.firestore();
+
+// EmailJS config
+const EMAILJS_SERVICE_ID = 'service_2a866e8';
+const EMAILJS_TEMPLATE_ID = 'template_ic2hywb';
+const EMAILJS_PUBLIC_KEY = 'vZTIVJWt1J9ftjhTw';
+emailjs.init(EMAILJS_PUBLIC_KEY);
+
+let pendingVerifyCode = null;
+let pendingVerifyEmail = null;
+let emailVerified = false;
 
 let me = null, techMode = false, editTenantId = null, editMachineId = null;
 let payingId = null, repairingId = null;
@@ -736,10 +759,12 @@ function renderTenants(list){
 // ADD/EDIT TENANT
 async function openAddTenant(){
   editTenantId=null; idFrontData=null; idBackData=null;
+  emailVerified=false; pendingVerifyCode=null; pendingVerifyEmail=null;
   $('tModalTitle').textContent='Add New Tenant';
   $('tSaveBtn').textContent='Add Tenant';
   ['t-fn','t-ln','t-addr','t-phone','t-email','t-rate','t-due','t-notes'].forEach(id=>{ const el=$(id); if(el)el.value=''; });
   $('t-fam').value='2'; $('t-status').value='active';
+  $('emailVerifiedBadge').style.display='none'; $('verifyCodeRow').style.display='none'; $('verifyHint').style.display='none'; $('verify-code-input').value='';
   $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none';
   $('idBackUpload').style.display='block'; $('idBackLocked').style.display='none';
   $('idFrontPreview').style.display='none'; $('idBackPreview').style.display='none';
@@ -759,7 +784,8 @@ async function openEditTenant(id){
   $('t-fam').value=t.familySize||2; $('t-due').value=t.dueDay||'';
   $('t-status').value=t.status||'active'; $('t-notes').value=t.notes||'';
   if(t.idFront){ $('idFrontUpload').style.display='none'; $('idFrontLocked').style.display='block'; }
-  else { $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none'; $('idFrontPreview').style.display='none'; }
+  else { $('emailVerifiedBadge').style.display='none'; $('verifyCodeRow').style.display='none'; $('verifyHint').style.display='none'; $('verify-code-input').value='';
+  $('idFrontUpload').style.display='block'; $('idFrontLocked').style.display='none'; $('idFrontPreview').style.display='none'; }
   if(t.idBack){ $('idBackUpload').style.display='none'; $('idBackLocked').style.display='block'; }
   else { $('idBackUpload').style.display='block'; $('idBackLocked').style.display='none'; $('idBackPreview').style.display='none'; }
   if(!machines.length){ try{ const s=await db.collection('machines').orderBy('machineNum').get(); machines=s.docs.map(d=>({id:d.id,...d.data()})); }catch(e){} }
@@ -784,9 +810,64 @@ function previewID(input,side){
   r.readAsDataURL(file);
 }
 
+function genCode(){ return String(Math.floor(100000+Math.random()*900000)); }
+
+async function sendVerifyCode(){
+  const email = $('t-email').value.trim();
+  if(!email || !email.includes('@')){ toast('Enter a valid email first'); return; }
+  const fn = $('t-fn').value.trim() || 'there';
+  pendingVerifyCode = genCode();
+  pendingVerifyEmail = email;
+  emailVerified = false;
+  $('emailVerifiedBadge').style.display='none';
+  
+  try{
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: email,
+      to_name: fn,
+      code: pendingVerifyCode
+    });
+    $('verifyCodeRow').style.display='flex';
+    $('verifyHint').style.display='block';
+    toast('Verification code sent to '+email);
+  }catch(e){
+    toast('Error sending email: '+(e.text||e.message||'check EmailJS setup'));
+  }
+}
+
+function checkVerifyCode(){
+  const entered = $('verify-code-input').value.trim();
+  if(!entered){ toast('Enter the code'); return; }
+  if(entered === pendingVerifyCode && $('t-email').value.trim() === pendingVerifyEmail){
+    emailVerified = true;
+    $('emailVerifiedBadge').style.display='block';
+    $('verifyCodeRow').style.display='none';
+    $('verifyHint').style.display='none';
+    toast('Email verified!');
+  } else {
+    toast('Incorrect code, try again');
+  }
+}
+
+async function sendWelcomeEmail(tenant){
+  if(!tenant.email) return;
+  try{
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_email: tenant.email,
+      to_name: tenant.firstName,
+      code: 'Welcome! Your tenant ID is '+tenant.tenantID+'. Monthly rate: $'+tenant.monthlyRate+', due every '+(tenant.dueDay||'TBD')+'th. Send Zelle payments to krazykicks88@gmail.com. Questions? Reply to this email.'
+    });
+  }catch(e){ console.log('Welcome email error:',e); }
+}
+
 async function saveTenant(){
   const fn=$('t-fn').value.trim(), ln=$('t-ln').value.trim();
   if(!fn||!ln){ toast('First and last name required'); return; }
+  const emailVal = $('t-email').value.trim();
+  if(emailVal && !emailVerified && !editTenantId){
+    toast('Please verify the email first by sending and entering the code');
+    return;
+  }
   const btn=$('tSaveBtn'); btn.textContent='Saving...'; btn.disabled=true;
   const data={
     firstName:fn, lastName:ln,
@@ -802,8 +883,13 @@ async function saveTenant(){
   if(idBackData&&(!existing||!existing.idBack)){ data.idBack=idBackData; }
   try{
     if(editTenantId){ await db.collection('tenants').doc(editTenantId).update(data); toast('Tenant updated'); }
-    else { data.tenantID=genID(); data.createdAt=new Date().toISOString().split('T')[0]; await db.collection('tenants').add(data); toast('Tenant added — ID: '+data.tenantID); }
-    closeM('tModal'); loadAll();
+    else {
+      data.tenantID=genID(); data.createdAt=new Date().toISOString().split('T')[0];
+      await db.collection('tenants').add(data);
+      toast('Tenant added — ID: '+data.tenantID);
+      if(data.email) sendWelcomeEmail(data);
+    }
+    closeM('tModal'); emailVerified=false; pendingVerifyCode=null; pendingVerifyEmail=null; loadAll();
   }catch(e){ toast('Error: '+e.message); }
   btn.textContent=editTenantId?'Save Changes':'Add Tenant'; btn.disabled=false;
 }
