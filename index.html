@@ -876,28 +876,30 @@ async function actuallySaveTenant(data){
       data.createdAt=new Date().toISOString().split('T')[0];
       await db.collection('tenants').add(data);
       toast('Tenant added — ID: '+data.tenantID);
-      if(data.email) sendWelcomeEmail(data);
+      if(data.email){
+        await sendWelcomeEmail(data);
+      }
     }
     closeM('tModal');
     loadAll();
-  }catch(e){ toast('Error: '+e.message); }
+  }catch(e){ toast('Error: '+e.message); alert('Save error: '+e.message); }
   if(btn){ btn.textContent=data._editId?'Save Changes':'Add Tenant'; btn.disabled=false; }
 }
 
 async function sendWelcomeEmail(tenant){
   if(!tenant.email) return;
   try{
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_WELCOME_TEMPLATE_ID, {
+    const result = await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_WELCOME_TEMPLATE_ID, {
       to_email: tenant.email,
       to_name: tenant.firstName,
       tenant_id: tenant.tenantID,
       rate: tenant.monthlyRate,
       due_day: tenant.dueDay || 'TBD'
     });
-    toast('Welcome email sent to '+tenant.email);
+    alert('Welcome email SENT successfully to '+tenant.email+' (status: '+result.status+')');
   }catch(e){
     console.log('Welcome email error:',e);
-    toast('Welcome email failed: '+(e.text||e.message||'unknown error'));
+    alert('Welcome email FAILED: '+JSON.stringify(e.text||e.message||e));
   }
 }
 
