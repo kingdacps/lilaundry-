@@ -463,6 +463,7 @@ const db = firebase.firestore();
 // EmailJS config
 const EMAILJS_SERVICE_ID = 'service_2a866e8';
 const EMAILJS_TEMPLATE_ID = 'template_f0kouyd';
+const EMAILJS_WELCOME_TEMPLATE_ID = 'template_s12lyve';
 const EMAILJS_PUBLIC_KEY = 'vZTIVJWt1J9ftjhTw';
 emailjs.init(EMAILJS_PUBLIC_KEY);
 
@@ -886,10 +887,12 @@ async function actuallySaveTenant(data){
 async function sendWelcomeEmail(tenant){
   if(!tenant.email) return;
   try{
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_WELCOME_TEMPLATE_ID, {
       to_email: tenant.email,
       to_name: tenant.firstName,
-      code: 'Welcome to LI Laundry Club! Your tenant ID is '+tenant.tenantID+'. Monthly rate: $'+tenant.monthlyRate+', due every '+(tenant.dueDay||'TBD')+'th. Send Zelle payments to krazykicks88@gmail.com.'
+      tenant_id: tenant.tenantID,
+      rate: tenant.monthlyRate,
+      due_day: tenant.dueDay || 'TBD'
     });
   }catch(e){ console.log('Welcome email error:',e); }
 }
