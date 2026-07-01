@@ -297,11 +297,11 @@ body.modal-open{overflow:hidden;}
       </div>
       <div class="sec-head" style="margin-top:-.5rem;margin-bottom:1rem;">
         <div class="tabs" style="margin-bottom:0;flex:1;">
-          <button class="tab on" onclick="filterLeads('all',this)">All</button>
+          <button class="tab on" onclick="filterLeads('all',this)">Active</button>
           <button class="tab" onclick="filterLeads('new',this)">New</button>
           <button class="tab" onclick="filterLeads('scheduled',this)">Scheduled</button>
           <button class="tab" onclick="filterLeads('followup',this)">Follow Up</button>
-          <button class="tab" onclick="filterLeads('closed',this)">Closed</button>
+          <button class="tab" onclick="filterLeads('closed',this)">Archived</button>
         </div>
       </div>
       <div id="leadList"></div>
@@ -402,6 +402,28 @@ body.modal-open{overflow:hidden;}
     <div class="mfoot" style="justify-content:space-between;">
       <button class="btn-cancel" onclick="resendVerifyCode()">Resend code</button>
       <button class="btn-save" onclick="confirmVerifyAndSave()">Verify & save</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELIVERY DATE MODAL -->
+<div class="overlay" id="deliveryModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="mhead2">
+      <p class="mtitle">📅 Schedule Delivery</p>
+    </div>
+    <div id="deliveryTenantInfo" style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-bottom:1rem;font-size:13px;"></div>
+    <p style="font-size:13px;color:#52514e;margin-bottom:1rem;">When would you like to deliver and install their washer and dryer?</p>
+    <div class="fg"><label>Delivery date</label><input id="del-date" type="date" onchange="renderDeliveryTimeSlots()"/></div>
+    <div class="fg">
+      <label>Delivery time</label>
+      <div id="deliveryTimeSlots" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"></div>
+      <input type="hidden" id="del-time" value=""/>
+    </div>
+    <div class="fg"><label>Notes (optional)</label><input id="del-notes" placeholder="Any special instructions..."/></div>
+    <div class="mfoot">
+      <button class="btn-cancel" onclick="skipDeliveryDate()">Skip for now</button>
+      <button class="btn-save" onclick="confirmDeliveryDate()">Confirm Delivery</button>
     </div>
   </div>
 </div>
@@ -1001,17 +1023,21 @@ async function actuallySaveTenant(data){
     if(data._editId){
       await db.collection('tenants').doc(data._editId).update(data);
       toast('Tenant updated');
+      closeM('tModal');
+      loadAll();
     } else {
       data.tenantID=genID();
       data.createdAt=new Date().toISOString().split('T')[0];
-      await db.collection('tenants').add(data);
+      const docRef = await db.collection('tenants').add(data);
       toast('Tenant added — ID: '+data.tenantID);
-      if(data.email){
-        sendWelcomeEmail(data);
-      }
+      if(data.email){ sendWelcomeEmail(data); }
+      closeM('tModal');
+      loadAll();
+      // Prompt delivery scheduling after short delay
+      setTimeout(()=>openDeliverySchedule(docRef.id, data.firstName+' '+data.lastName), 400);
+      if(btn){ btn.textContent='Add Tenant'; btn.disabled=false; }
+      return;
     }
-    closeM('tModal');
-    loadAll();
   }catch(e){ toast('Error: '+e.message); }
   if(btn){ btn.textContent=data._editId?'Save Changes':'Add Tenant'; btn.disabled=false; }
 }
@@ -1460,7 +1486,76 @@ async function submitRepair(){
 }
 
 // MODAL HELPERS
-// ============ LEADS ============
+// ============ DELIVERY DATE ============
+let pendingDeliveryTenantId = null;
+let pendingDeliveryTenantName = null;
+
+function openDeliverySchedule(tenantId, tenantName){
+  pendingDeliveryTenantId = tenantId;
+  pendingDeliveryTenantName = tenantName;
+  $('deliveryTenantInfo').innerHTML = `✓ <strong>${tenantName}</strong> is now signed up!<br>Let's schedule their delivery.`;
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  $('del-date').value = tomorrow.toISOString().split('T')[0];
+  $('del-time').value = '';
+  $('del-notes').value = '';
+  renderDeliveryTimeSlots();
+  $('deliveryModal').classList.add('show'); document.body.classList.add('modal-open');
+}
+
+function renderDeliveryTimeSlots(){
+  const date = $('del-date').value;
+  const el = $('deliveryTimeSlots');
+  const slots = getAllSlots();
+  const selected = $('del-time').value;
+  // Check against leads scheduled for that date (delivery slots take 1hr)
+  el.innerHTML = slots.map(slot=>{
+    const isSelected = slot===selected;
+    return `<button type="button" class="time-slot ${isSelected?'selected':''}" onclick="selectDeliverySlot('${slot}')">${fmtTime(slot)}</button>`;
+  }).join('');
+}
+
+function selectDeliverySlot(slot){
+  $('del-time').value = slot;
+  renderDeliveryTimeSlots();
+}
+
+async function confirmDeliveryDate(){
+  const date = $('del-date').value;
+  const time = $('del-time').value;
+  if(!date||!time){ toast('Pick a date and time for the delivery'); return; }
+  try{
+    await db.collection('tenants').doc(pendingDeliveryTenantId).update({
+      deliveryDate: date,
+      deliveryTime: time,
+      deliveryNotes: $('del-notes').value.trim(),
+      status: 'active'
+    });
+    // Also add as a lead scheduled for delivery so it shows in routes
+    await db.collection('leads').add({
+      firstName: pendingDeliveryTenantName.split(' ')[0],
+      lastName: pendingDeliveryTenantName.split(' ').slice(1).join(' '),
+      status: 'scheduled',
+      appointmentType: 'delivery',
+      scheduledDate: date,
+      scheduledTime: time,
+      tenantId: pendingDeliveryTenantId,
+      isDelivery: true,
+      createdAt: new Date().toISOString(),
+      employeeId: me.id,
+      employeeName: me.name||me.username
+    });
+    closeM('deliveryModal');
+    toast('Delivery scheduled for '+fmtSchedDate(date,time));
+    loadAll();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+function skipDeliveryDate(){
+  closeM('deliveryModal');
+  toast('You can schedule the delivery later from the Leads tab');
+}
+
+
 let allLeads = [];
 let leadFilter = 'all';
 let editLeadId = null;
@@ -1494,18 +1589,25 @@ function fmtSchedDate(dateStr,timeStr){
 function renderLeads(){
   const el = $('leadList');
   let list = allLeads;
+  
+  // "All" only shows active leads — not closed or converted
+  if(leadFilter==='all') list = allLeads.filter(l=>!['closed','converted'].includes(l.status));
   if(leadFilter==='new') list = allLeads.filter(l=>l.status==='new'||!l.status);
   if(leadFilter==='scheduled') list = allLeads.filter(l=>l.status==='scheduled');
   if(leadFilter==='followup') list = allLeads.filter(l=>l.status==='followup');
-  if(leadFilter==='closed') list = allLeads.filter(l=>l.status==='closed');
+  if(leadFilter==='closed') list = allLeads.filter(l=>l.status==='closed'||l.status==='converted');
 
-  if(!list.length){ el.innerHTML='<div class="empty"><div style="font-size:40px;margin-bottom:12px;">📋</div><p>No leads here yet.</p></div>'; return; }
+  if(!list.length){ 
+    el.innerHTML=`<div class="empty"><div style="font-size:40px;margin-bottom:12px;">📋</div><p>${leadFilter==='all'?'No active leads. Add one above!':'Nothing here.'}</p></div>`; 
+    return; 
+  }
 
   el.innerHTML = list.map(l=>{
-    const statusClass = l.status==='scheduled'?'lst-scheduled':l.status==='followup'?'lst-followup':l.status==='closed'?'lst-closed':'lst-new';
-    const statusLabel = l.status==='scheduled'?'Scheduled':l.status==='followup'?'Follow Up':l.status==='closed'?'Closed':'New';
+    const statusClass = l.status==='scheduled'?'lst-scheduled':l.status==='followup'?'lst-followup':l.status==='closed'||l.status==='converted'?'lst-closed':'lst-new';
+    const statusLabel = l.status==='scheduled'?'Scheduled':l.status==='followup'?'Follow Up':l.status==='converted'?'✓ Signed Up':l.status==='closed'?'Closed':'New';
     const initials = ((l.firstName||'?')[0]+(l.lastName||'?')[0]).toUpperCase();
-    return `<div class="lead-card">
+    const isArchived = l.status==='closed'||l.status==='converted';
+    return `<div class="lead-card" style="${isArchived?'opacity:.6;':''}">
       <div class="lead-av">${initials}</div>
       <div class="lead-info">
         <div class="lead-name">${l.firstName} ${l.lastName}</div>
@@ -1514,11 +1616,21 @@ function renderLeads(){
       </div>
       <span class="lead-status ${statusClass}">${statusLabel}</span>
       <div class="lead-actions-row">
-        <button class="btn-s" onclick="openScheduleLead('${l.id}')">📅</button>
-        <button class="btn-s" onclick="openEditLead('${l.id}')">✏️</button>
+        ${!isArchived?`<button class="btn-s" onclick="openScheduleLead('${l.id}')">📅</button>`:''}
+        ${!isArchived?`<button class="btn-s" onclick="openEditLead('${l.id}')">✏️</button>`:''}
+        <button class="btn-s danger" onclick="deleteLead('${l.id}','${l.firstName} ${l.lastName}')">🗑</button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function deleteLead(id, name){
+  if(!confirm('Delete '+name+' permanently?')) return;
+  try{
+    await db.collection('leads').doc(id).delete();
+    loadLeads();
+    toast('Lead deleted');
+  }catch(e){ toast('Error: '+e.message); }
 }
 
 function openAddLead(){
@@ -1828,7 +1940,7 @@ async function routeSignUpNow(routeId, stopIndex){
 
     // mark lead closed (converted)
     if(stop.leadId){
-      await db.collection('leads').doc(stop.leadId).update({status:'closed', convertedToTenant:true});
+      await db.collection('leads').doc(stop.leadId).update({status:'converted', convertedToTenant:true});
     }
 
     // close route modal, open add tenant pre-filled
